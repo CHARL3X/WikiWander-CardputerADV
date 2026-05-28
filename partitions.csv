@@ -1,0 +1,8 @@
+# Wikiwander 8MB layout. Same shape as CHARL3X: single factory app at
+# the canonical 0x10000 offset, nvs + otadata reserved at the standard
+# locations the arduino-esp32 framework expects.
+#
+# Name,    Type, SubType, Offset,   Size,    Flags
+nvs,       data, nvs,     0x9000,   0x5000,
+otadata,   data, ota,     0xe000,   0x2000,
+factory,   app,  factory, 0x10000,  0x7F0000,

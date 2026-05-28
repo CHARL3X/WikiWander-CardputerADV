@@ -1,0 +1,6 @@
+.pio/
+.vscode/
+dist/
+*.swp
+*.swo
+.DS_Store
