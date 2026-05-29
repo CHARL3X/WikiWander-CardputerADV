@@ -19,7 +19,17 @@
 
 </div>
 
-> *Wikipedia&#39;s entire pool of articles, distilled into 240 by 135 pixels of warm sepia text. Random pages, today's events, search, save-to-SD library, tappable inline links, walk-trail backtracking — a small book carried in a pocket.*
+> *Wikipedia is a graph of six million articles knotted together by tens of millions of links. Wikiwander walks it. Press a key on a tiny pocket device, end up somewhere you&#39;d never have searched for.*
+
+<br>
+
+## A walk you wouldn&#39;t have planned
+
+<img src="docs/journey.svg" alt="A real five-click walk through Wikipedia: Pufferfish → Tetrodotoxin → Haitian Vodou → Zombi → Night of the Living Dead → Horror Film" width="100%">
+
+<br>
+
+Every article has links. Tap any one, that article has more. Five clicks in, you&#39;ve crossed disciplines you would never have searched for in the same session. Wikiwander doesn&#39;t fight that — it&#39;s built around it. Random opens a door at random. Tab cycles through every link in the current page. `enter` walks. `b` walks back. The trail caps at twelve so a long session doesn&#39;t fragment the heap.
 
 <br>
 

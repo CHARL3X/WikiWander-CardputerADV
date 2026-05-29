@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="j-paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F2E9CF"/>
+      <stop offset="100%" stop-color="#E9DEBA"/>
+    </linearGradient>
+    <radialGradient id="j-vignette" cx="50%" cy="50%" r="70%">
+      <stop offset="60%" stop-color="rgba(60,40,14,0)"/>
+      <stop offset="100%" stop-color="rgba(60,40,14,0.18)"/>
+    </radialGradient>
+    <filter id="j-noise">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="11"/>
+      <feColorMatrix values="0 0 0 0 0.15  0 0 0 0 0.10  0 0 0 0 0.05  0 0 0 0.35 0"/>
+    </filter>
+    <!-- Arrow marker for taken paths -->
+    <marker id="arrow-taken" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0,0 L 10,5 L 0,10 L 3,5 z" fill="#8E6E3A"/>
+    </marker>
+    <!-- Arrow marker for ghost paths (lighter) -->
+    <marker id="arrow-ghost" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0,0 L 10,5 L 0,10 L 3,5 z" fill="#C5B084"/>
+    </marker>
+  </defs>
+
+  <!-- Paper + texture + vignette -->
+  <rect width="1200" height="720" fill="url(#j-paper)"/>
+  <rect width="1200" height="720" filter="url(#j-noise)" opacity="0.4" style="mix-blend-mode:multiply"/>
+  <rect width="1200" height="720" fill="url(#j-vignette)"/>
+
+  <!-- Header: eyebrow + headline + subhead -->
+  <g transform="translate(80,76)">
+    <line x1="0" y1="0" x2="36" y2="0" stroke="#8E6E3A" stroke-width="1.2"/>
+    <text x="46" y="4" font-family="'Courier New', monospace" font-size="11" fill="#7D6A4A" letter-spacing="3.2">A REAL WALK · FIVE CLICKS</text>
+  </g>
+
+  <text x="80" y="148"
+        font-family="Fraunces, 'Cormorant Garamond', Georgia, serif"
+        font-style="italic" font-weight="600"
+        font-size="68" fill="#1F160B" letter-spacing="-2.5">A walk you wouldn&apos;t have planned.</text>
+
+  <text x="80" y="192"
+        font-family="'EB Garamond', Georgia, serif"
+        font-style="italic" font-size="22" fill="#4A3A24">Pufferfish to George Romero in five clicks — every step a real Wikipedia link.</text>
+
+  <!-- === THE PATH === -->
+  <!-- Curving connections between the 6 nodes, hand-drawn-feeling
+       cubic beziers with a dashed stroke. The "taken" path is in
+       sepia; ghost branches (paths not taken) are in lighter tan
+       and shorter, peeling off at each node. -->
+
+  <!-- Taken path: smooth bezier connecting all 6 node centers -->
+  <g fill="none" stroke="#8E6E3A" stroke-width="1.6" stroke-dasharray="5 6" opacity="0.85">
+    <path d="M 178,406 C 230,330 270,290 318,278" marker-end="url(#arrow-taken)"/>
+    <path d="M 446,322 C 490,360 510,440 528,496" marker-end="url(#arrow-taken)"/>
+    <path d="M 656,520 C 700,500 720,430 736,358" marker-end="url(#arrow-taken)"/>
+    <path d="M 866,322 C 900,400 920,490 938,556" marker-end="url(#arrow-taken)"/>
+    <path d="M 1066,536 C 1086,470 1098,420 1108,388" marker-end="url(#arrow-taken)"/>
+  </g>
+
+  <!-- Ghost branches (faded) -- the paths the user could have taken
+       but didn't. Each peels off short and trails into nothing. -->
+  <g fill="none" stroke="#C5B084" stroke-width="1.2" stroke-dasharray="3 5" opacity="0.55">
+    <!-- From node 1 (Pufferfish): could've gone to Marine biology -->
+    <path d="M 178,432 C 210,510 240,560 268,592" marker-end="url(#arrow-ghost)"/>
+    <!-- From node 2 (Tetrodotoxin): could've gone to Neurotoxin -->
+    <path d="M 396,302 C 420,212 440,180 466,158" marker-end="url(#arrow-ghost)"/>
+    <!-- From node 3 (Haitian Vodou): could've gone to Spirit possession -->
+    <path d="M 580,510 C 612,580 642,610 668,630" marker-end="url(#arrow-ghost)"/>
+    <!-- From node 4 (Zombi): could've gone to Folklore -->
+    <path d="M 818,310 C 840,250 860,212 880,182" marker-end="url(#arrow-ghost)"/>
+    <!-- From node 5 (Night of the Living Dead): George Romero -->
+    <path d="M 992,572 C 1010,640 1030,672 1050,690" marker-end="url(#arrow-ghost)"/>
+  </g>
+
+  <!-- Connection labels along the taken path -->
+  <g font-family="'Courier New', monospace" font-size="10" fill="#8E6E3A" letter-spacing="1.6">
+    <text x="252" y="338" transform="rotate(-32 252 338)">tab + ↩</text>
+    <text x="498" y="396" transform="rotate(50 498 396)">tab + ↩</text>
+    <text x="710" y="440" transform="rotate(-58 710 440)">tab + ↩</text>
+    <text x="908" y="408" transform="rotate(56 908 408)">tab + ↩</text>
+    <text x="1098" y="462" transform="rotate(-70 1098 462)">where next?</text>
+  </g>
+
+  <!-- Faded labels for ghost branches -->
+  <g font-family="'Courier New', monospace" font-size="9" fill="#C5B084" letter-spacing="1.4">
+    <text x="218" y="546" transform="rotate(62 218 546)" opacity="0.75">marine biology →</text>
+    <text x="416" y="222" transform="rotate(-68 416 222)" opacity="0.75">neurotoxin →</text>
+    <text x="618" y="586" transform="rotate(58 618 586)" opacity="0.75">spirit possession →</text>
+    <text x="848" y="240" transform="rotate(-68 848 240)" opacity="0.75">folklore →</text>
+    <text x="1028" y="650" transform="rotate(62 1028 650)" opacity="0.75">George Romero →</text>
+  </g>
+
+  <!-- === ARTICLE NODES === -->
+
+  <!-- Node 1: Pufferfish -->
+  <g transform="translate(80,388)">
+    <rect x="0" y="0" width="180" height="44" fill="#F2E9CF" stroke="#1F160B" stroke-width="1.5" rx="2"/>
+    <rect x="3" y="3" width="180" height="44" fill="none" stroke="#1F160B" stroke-width="0.8" rx="2" opacity="0.4"/>
+    <text x="14" y="20" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-weight="600" font-size="18" fill="#1F160B">Pufferfish</text>
+    <text x="14" y="35" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A">/wiki/Tetraodontidae</text>
+    <text x="14" y="-8" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A" letter-spacing="1.6">01 · RANDOM</text>
+  </g>
+
+  <!-- Node 2: Tetrodotoxin -->
+  <g transform="translate(248,256)">
+    <rect x="0" y="0" width="200" height="44" fill="#F2E9CF" stroke="#1F160B" stroke-width="1.5" rx="2"/>
+    <rect x="3" y="3" width="200" height="44" fill="none" stroke="#1F160B" stroke-width="0.8" rx="2" opacity="0.4"/>
+    <text x="14" y="20" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-weight="600" font-size="18" fill="#1F160B">Tetrodotoxin</text>
+    <text x="14" y="35" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A">/wiki/Tetrodotoxin</text>
+    <text x="14" y="-8" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A" letter-spacing="1.6">02 · their notorious poison</text>
+  </g>
+
+  <!-- Node 3: Haitian Vodou -->
+  <g transform="translate(440,496)">
+    <rect x="0" y="0" width="220" height="44" fill="#F2E9CF" stroke="#1F160B" stroke-width="1.5" rx="2"/>
+    <rect x="3" y="3" width="220" height="44" fill="none" stroke="#1F160B" stroke-width="0.8" rx="2" opacity="0.4"/>
+    <text x="14" y="20" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-weight="600" font-size="18" fill="#1F160B">Haitian Vodou</text>
+    <text x="14" y="35" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A">/wiki/Haitian_Vodou</text>
+    <text x="14" y="-8" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A" letter-spacing="1.6">03 · used in zombification rites</text>
+  </g>
+
+  <!-- Node 4: Zombi -->
+  <g transform="translate(648,300)">
+    <rect x="0" y="0" width="180" height="44" fill="#F2E9CF" stroke="#1F160B" stroke-width="1.5" rx="2"/>
+    <rect x="3" y="3" width="180" height="44" fill="none" stroke="#1F160B" stroke-width="0.8" rx="2" opacity="0.4"/>
+    <text x="14" y="20" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-weight="600" font-size="18" fill="#1F160B">Zombi</text>
+    <text x="14" y="35" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A">/wiki/Zombi</text>
+    <text x="14" y="-8" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A" letter-spacing="1.6">04 · the folk creature</text>
+  </g>
+
+  <!-- Node 5: Night of the Living Dead -->
+  <g transform="translate(820,536)">
+    <rect x="0" y="0" width="240" height="44" fill="#F2E9CF" stroke="#1F160B" stroke-width="1.5" rx="2"/>
+    <rect x="3" y="3" width="240" height="44" fill="none" stroke="#1F160B" stroke-width="0.8" rx="2" opacity="0.4"/>
+    <text x="14" y="20" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-weight="600" font-size="18" fill="#1F160B">Night of the Living Dead</text>
+    <text x="14" y="35" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A">/wiki/Night_of_the_Living_Dead</text>
+    <text x="14" y="-8" font-family="'Courier New', monospace" font-size="9" fill="#8E6E3A" letter-spacing="1.6">05 · Romero&apos;s 1968 film</text>
+  </g>
+
+  <!-- Node 6: Horror Film (the destination, highlighted) -->
+  <g transform="translate(1020,328)">
+    <rect x="0" y="0" width="160" height="48" fill="#BC6030" stroke="#1F160B" stroke-width="1.5" rx="2"/>
+    <rect x="3" y="3" width="160" height="48" fill="none" stroke="#1F160B" stroke-width="0.8" rx="2" opacity="0.5"/>
+    <text x="14" y="22" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-weight="700" font-size="20" fill="#F2E9CF">Horror Film</text>
+    <text x="14" y="38" font-family="'Courier New', monospace" font-size="9" fill="#F2E9CF" opacity="0.8">/wiki/Horror_film</text>
+    <text x="14" y="-8" font-family="'Courier New', monospace" font-size="9" fill="#BC6030" letter-spacing="1.6">06 · you ended up here.</text>
+  </g>
+
+  <!-- Marginal note (right side, italic, like a reading-margin annotation) -->
+  <g transform="translate(80,612)">
+    <text font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="17" fill="#4A3A24" letter-spacing="0.01em">
+      <tspan x="0" dy="0">Five steps. Pufferfish toxin used in folk rituals; rituals produced the zombi;</tspan>
+      <tspan x="0" dy="22">the zombi inspired a 1968 film; the film founded the modern horror genre.</tspan>
+      <tspan x="0" dy="22"><tspan fill="#1F160B" font-weight="500">You wouldn&apos;t have searched for any of that</tspan> — you just kept pressing Tab.</tspan>
+    </text>
+  </g>
+
+  <!-- Footer signature -->
+  <g transform="translate(80,696)">
+    <line x1="0" y1="-12" x2="80" y2="-12" stroke="#C5B084" stroke-width="1"/>
+    <text x="0" y="0" font-family="'Courier New', monospace" font-size="10" fill="#7D6A4A" letter-spacing="2.6">WIKIPEDIA IS A GRAPH · WIKIWANDER WALKS IT</text>
+  </g>
+
+</svg>
