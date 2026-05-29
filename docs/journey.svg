@@ -57,7 +57,7 @@
     <path d="M 1066,536 C 1086,470 1098,420 1108,388" marker-end="url(#arrow-taken)"/>
   </g>
 
-  <!-- Ghost branches (faded) -- the paths the user could have taken
+  <!-- Ghost branches (faded): the paths the user could have taken
        but didn't. Each peels off short and trails into nothing. -->
   <g fill="none" stroke="#C5B084" stroke-width="1.2" stroke-dasharray="3 5" opacity="0.55">
     <!-- From node 1 (Pufferfish): could've gone to Marine biology -->

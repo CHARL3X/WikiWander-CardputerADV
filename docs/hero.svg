@@ -119,9 +119,9 @@
       <text x="274" y="152" font-family="'Courier New', monospace" font-size="8" fill="#645542" text-anchor="end">r · s · q</text>
     </g>
 
-    <!-- Keyboard suggestion -- 4 staggered rows of tiny keys, real
-         Cardputer ADV proportions: keyboard butts right up against
-         the bottom edge with only a few px of breathing room. -->
+    <!-- Keyboard: 4 staggered rows of tiny keys, real Cardputer ADV
+         proportions: keyboard butts right up against the bottom edge
+         with only a few px of breathing room. -->
     <g transform="translate(24, 190)">
       <g fill="#1f1813">
         <!-- Row 1 -->
