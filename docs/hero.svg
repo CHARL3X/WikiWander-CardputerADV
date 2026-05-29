@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" preserveAspectRatio="xMidYMid meet">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid meet">
   <defs>
     <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#F2E9CF"/>
@@ -20,34 +20,37 @@
   </defs>
 
   <!-- Paper background + texture + vignette -->
-  <rect width="1200" height="520" fill="url(#paper)"/>
-  <rect width="1200" height="520" filter="url(#noise)" opacity="0.4" style="mix-blend-mode:multiply"/>
-  <rect width="1200" height="520" fill="url(#vignette)"/>
+  <rect width="1200" height="460" fill="url(#paper)"/>
+  <rect width="1200" height="460" filter="url(#noise)" opacity="0.4" style="mix-blend-mode:multiply"/>
+  <rect width="1200" height="460" fill="url(#vignette)"/>
 
   <!-- Decorative rule top-left + eyebrow -->
-  <g transform="translate(80,72)">
+  <g transform="translate(80,68)">
     <line x1="0" y1="0" x2="36" y2="0" stroke="#8E6E3A" stroke-width="1.2"/>
     <text x="46" y="4" font-family="'Courier New', monospace" font-size="11" fill="#7D6A4A" letter-spacing="3.2">AN ESP32-S3 POCKET LIBRARY</text>
   </g>
 
-  <!-- Wordmark: huge italic serif. Fraunces falls back to Georgia/serif. -->
-  <text x="80" y="220"
+  <!-- Wordmark: italic serif. Size + letter-spacing tuned so the text
+       still feels like a hero but fits cleanly in the left column
+       even when the user has Fraunces installed (wider than the
+       Georgia fallback). -->
+  <text x="80" y="200"
         font-family="Fraunces, 'Cormorant Garamond', Georgia, 'Times New Roman', serif"
         font-style="italic"
         font-weight="600"
-        font-size="148"
+        font-size="124"
         fill="#1F160B"
-        letter-spacing="-4">Wikiwander<tspan font-weight="300" dx="-6">.</tspan></text>
+        letter-spacing="-5">Wikiwander<tspan font-weight="300" dx="-4">.</tspan></text>
 
   <!-- Tagline with em-dash -->
-  <text x="80" y="272"
+  <text x="80" y="244"
         font-family="'EB Garamond', Georgia, serif"
         font-style="italic"
-        font-size="26"
+        font-size="24"
         fill="#4A3A24"><tspan fill="#8E6E3A">— </tspan>a small pocket library for the M5Stack Cardputer ADV</text>
 
-  <!-- Colophon-style aside -->
-  <g transform="translate(80,340)">
+  <!-- Colophon-style aside in the lower-left -->
+  <g transform="translate(80,300)">
     <line x1="0" y1="-6" x2="0" y2="100" stroke="#C5B084" stroke-width="2"/>
     <text x="14" y="8" font-family="'Courier New', monospace" font-size="10" fill="#8E6E3A" letter-spacing="2.6">COLOPHON</text>
     <text x="14" y="34" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="15" fill="#4A3A24">
@@ -58,16 +61,19 @@
     </text>
   </g>
 
-  <!-- Decorative ornament between text + device -->
-  <text x="760" y="270" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="32" fill="#8E6E3A" text-anchor="middle">❦</text>
+  <!-- Ornament between text + device -->
+  <text x="770" y="240" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-size="32" fill="#8E6E3A" text-anchor="middle">❦</text>
 
   <!-- === DEVICE MOCKUP === -->
-  <g transform="translate(830,90)">
-    <!-- Device body -->
-    <rect x="0" y="0" width="320" height="340" rx="14" fill="url(#device)"/>
+  <!-- Device proportions adjusted: real Cardputer ADV has very little
+       space between the keyboard and bottom edge. Total height
+       drops from 340 → 252 by tightening the keyboard-to-label gap. -->
+  <g transform="translate(840,100)">
+    <!-- Device body (now 320 x 252) -->
+    <rect x="0" y="0" width="320" height="252" rx="14" fill="url(#device)"/>
     <!-- Top highlight -->
     <rect x="0" y="0" width="320" height="14" rx="14" fill="rgba(255,220,170,0.07)"/>
-    <!-- Screen frame (slight inset) -->
+    <!-- Screen frame -->
     <rect x="18" y="22" width="284" height="160" rx="4" fill="#050402"/>
     <rect x="20" y="24" width="280" height="156" rx="3" fill="#0A0805"/>
 
@@ -90,16 +96,14 @@
       <text x="6" y="50" font-family="'Courier New', monospace" font-size="8.5" fill="#645542">text w/ references</text>
       <text x="274" y="50" font-family="'Courier New', monospace" font-size="8.5" fill="#8E6E3A" text-anchor="end">~1 min · 14 links</text>
 
-      <!-- Body text -->
+      <!-- Body text with an inverted-active-link highlight -->
       <g font-family="'Courier New', monospace" font-size="9" fill="#D8C9A8">
         <text x="6" y="68">Hypertext is text displayed</text>
         <text x="6" y="80">on a <tspan fill="#C68C5A" text-decoration="underline">computer display</tspan> with</text>
-        <text x="6" y="92">references (<tspan fill="#0A0805" font-weight="bold">
-          <tspan fill="#0A0805">hyperlinks</tspan>
-        </tspan>) to other</text>
-        <!-- The active link gets an inverted highlight background -->
-        <rect x="64" y="84" width="56" height="11" fill="#E6A560"/>
-        <text x="66" y="92" font-family="'Courier New', monospace" font-size="9" fill="#0A0805" font-weight="bold">hyperlinks</text>
+        <text x="6" y="92">references (</text>
+        <rect x="62" y="84" width="56" height="11" fill="#E6A560"/>
+        <text x="64" y="92" font-family="'Courier New', monospace" font-size="9" fill="#0A0805" font-weight="bold">hyperlinks</text>
+        <text x="119" y="92">) to other</text>
         <text x="6" y="104">text that the reader can</text>
         <text x="6" y="116">immediately access via</text>
         <text x="6" y="128"><tspan fill="#C68C5A" text-decoration="underline">mouse</tspan> click, key, or touch.</text>
@@ -115,25 +119,26 @@
       <text x="274" y="152" font-family="'Courier New', monospace" font-size="8" fill="#645542" text-anchor="end">r · s · q</text>
     </g>
 
-    <!-- Keyboard suggestion at bottom of device -->
-    <g transform="translate(24, 200)">
-      <!-- 5 rows of tiny keys -->
+    <!-- Keyboard suggestion -- 4 staggered rows of tiny keys, real
+         Cardputer ADV proportions: keyboard butts right up against
+         the bottom edge with only a few px of breathing room. -->
+    <g transform="translate(24, 190)">
       <g fill="#1f1813">
         <!-- Row 1 -->
-        <rect x="0"   y="0" width="16" height="8" rx="1.5"/>
-        <rect x="19"  y="0" width="16" height="8" rx="1.5"/>
-        <rect x="38"  y="0" width="16" height="8" rx="1.5"/>
-        <rect x="57"  y="0" width="16" height="8" rx="1.5"/>
-        <rect x="76"  y="0" width="16" height="8" rx="1.5"/>
-        <rect x="95"  y="0" width="16" height="8" rx="1.5"/>
-        <rect x="114" y="0" width="16" height="8" rx="1.5"/>
-        <rect x="133" y="0" width="16" height="8" rx="1.5"/>
-        <rect x="152" y="0" width="16" height="8" rx="1.5"/>
-        <rect x="171" y="0" width="16" height="8" rx="1.5"/>
-        <rect x="190" y="0" width="16" height="8" rx="1.5"/>
-        <rect x="209" y="0" width="16" height="8" rx="1.5"/>
-        <rect x="228" y="0" width="16" height="8" rx="1.5"/>
-        <rect x="247" y="0" width="20" height="8" rx="1.5"/>
+        <rect x="0"   y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="19"  y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="38"  y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="57"  y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="76"  y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="95"  y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="114" y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="133" y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="152" y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="171" y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="190" y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="209" y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="228" y="0"  width="16" height="8" rx="1.5"/>
+        <rect x="247" y="0"  width="20" height="8" rx="1.5"/>
         <!-- Row 2 -->
         <rect x="2"   y="11" width="16" height="8" rx="1.5"/>
         <rect x="21"  y="11" width="16" height="8" rx="1.5"/>
@@ -175,12 +180,12 @@
       </g>
     </g>
 
-    <!-- Device label -->
-    <text x="160" y="324" font-family="'Courier New', monospace" font-size="9" fill="rgba(225,200,160,0.32)" letter-spacing="3" text-anchor="middle">CARDPUTER · ADV</text>
+    <!-- Device label moved tight to bottom (no dead space) -->
+    <text x="160" y="244" font-family="'Courier New', monospace" font-size="9" fill="rgba(225,200,160,0.32)" letter-spacing="3" text-anchor="middle">CARDPUTER · ADV</text>
   </g>
 
-  <!-- Bottom subtle rule + version chip -->
-  <line x1="80" y1="484" x2="180" y2="484" stroke="#C5B084" stroke-width="1"/>
-  <text x="80" y="500" font-family="'Courier New', monospace" font-size="10" fill="#7D6A4A" letter-spacing="2.6">VERSION 0.1 · MIT</text>
+  <!-- Bottom rule + version chip -->
+  <line x1="80" y1="424" x2="180" y2="424" stroke="#C5B084" stroke-width="1"/>
+  <text x="80" y="440" font-family="'Courier New', monospace" font-size="10" fill="#7D6A4A" letter-spacing="2.6">VERSION 0.1 · MIT</text>
 
 </svg>
