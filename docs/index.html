@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wikiwander — a small pocket library</title>
+<meta name="description" content="Random Wikipedia articles on a tiny ESP32 device. Sepia-on-black, designed for the 240×135 screen of the M5Stack Cardputer ADV.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=JetBrains+Mono:ital,wght@0,400..700;1,400..700&display=swap">
+
+<style>
+:root {
+  /* Palette: warm aged paper with deep sepia ink. The "screen"
+     mockup inverts this -- dark with sepia -- to mirror the app. */
+  --paper:        #EFE6CC;
+  --paper-deep:   #E5D9B0;
+  --paper-edge:   #D6C597;
+  --ink:          #1F160B;
+  --ink-soft:     #4A3A24;
+  --ink-faint:    #7D6A4A;
+  --sepia:        #8E6E3A;
+  --sepia-glow:   #BC6030;
+  --rule:         #C5B084;
+  --screen-bg:    #0A0805;
+  --screen-warm:  #14100B;
+  --screen-sepia: #C68C5A;
+  --screen-glow:  #E6A560;
+  --screen-dim:   #645542;
+  --screen-text:  #D8C9A8;
+  --screen-dimer: #4A3F32;
+}
+
+/* Reset + base */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'EB Garamond', 'Georgia', serif;
+  font-size: 18px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Subtle paper texture -- SVG noise turbulence as a fixed background.
+   The opacity is dialed way down; on close inspection you see grain,
+   from any distance it just reads as warmth. */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: .42;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='n'><feTurbulence baseFrequency='0.85' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0.15  0 0 0 0 0.10  0 0 0 0 0.05  0 0 0 0.42 0'/></filter><rect width='320' height='320' filter='url(%23n)' opacity='0.42'/></svg>");
+}
+
+/* A thin scan of vignette around the edges so the page feels like an
+   open book rather than an infinite plane. */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  box-shadow:
+    inset 0 0 220px rgba(60, 40, 14, 0.18),
+    inset 0 0 60px rgba(60, 40, 14, 0.10);
+}
+
+/* Selection: warmer than browser default. */
+::selection { background: var(--sepia-glow); color: var(--paper); }
+
+/* --- Typographic foundation --- */
+
+.display {
+  font-family: 'Fraunces', 'Times New Roman', serif;
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+  font-weight: 600;
+  font-style: italic;
+  letter-spacing: -0.025em;
+  line-height: 0.95;
+  color: var(--ink);
+}
+
+.eyebrow {
+  font-family: 'JetBrains Mono', 'Menlo', monospace;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78em;
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-edge);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--ink);
+  vertical-align: 0.04em;
+  white-space: nowrap;
+}
+
+/* --- Layout shell --- */
+
+.shell {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 48px;
+  position: relative;
+}
+
+/* --- Top rail --- */
+
+.top-rail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28px 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-faint);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.top-rail a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1px;
+  transition: color .25s, border-color .25s;
+}
+.top-rail a:hover { color: var(--sepia-glow); border-color: var(--sepia-glow); }
+.top-rail .version {
+  color: var(--ink-faint);
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-edge);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 10.5px;
+}
+
+/* --- Hero --- */
+
+.hero {
+  padding: 96px 0 64px;
+  position: relative;
+}
+
+.hero-title {
+  font-size: clamp(72px, 14vw, 196px);
+  margin: 12px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: 'opsz' 144, 'SOFT' 90;
+  font-weight: 500;
+  font-style: italic;
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+}
+.hero-title .amp {
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+  font-weight: 300;
+  font-style: italic;
+  display: inline-block;
+  transform: translateY(-0.04em);
+}
+
+.hero-tag {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: clamp(22px, 2.4vw, 30px);
+  margin-top: 14px;
+  font-family: 'EB Garamond', serif;
+  font-weight: 400;
+}
+
+.hero-tag::before {
+  content: '— ';
+  color: var(--sepia);
+}
+
+/* --- Intro band: prose left, device right --- */
+
+.intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  gap: 88px;
+  align-items: center;
+  padding: 32px 0 88px;
+}
+
+.prose p {
+  font-size: 19.5px;
+  line-height: 1.62;
+  margin: 0 0 1.1em;
+  color: var(--ink);
+}
+.prose .lead { font-size: 22px; }
+
+.dropcap {
+  float: left;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: 'opsz' 144;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 88px;
+  line-height: 0.82;
+  padding: 6px 12px 0 0;
+  color: var(--sepia-glow);
+}
+
+.aside {
+  margin-top: 28px;
+  padding-left: 18px;
+  border-left: 2px solid var(--rule);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 16.5px;
+  max-width: 380px;
+}
+.aside .label {
+  font-family: 'JetBrains Mono', monospace;
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sepia);
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* --- Device mockup --- */
+
+.device-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.device {
+  position: relative;
+  width: 380px;
+  padding: 28px 24px 64px;
+  background: linear-gradient(165deg, #2A211A 0%, #1A1410 50%, #14100B 100%);
+  border-radius: 14px;
+  box-shadow:
+    0 30px 60px -20px rgba(40, 25, 8, 0.35),
+    0 12px 24px -8px rgba(40, 25, 8, 0.20),
+    inset 0 1px 0 rgba(220, 195, 145, 0.10),
+    inset 0 -2px 0 rgba(0,0,0,0.4);
+}
+
+/* Cardputer-style angled top of the device for character */
+.device::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 14px;
+  background: linear-gradient(180deg, rgba(255,220,170,0.06), transparent);
+  border-radius: 14px 14px 0 0;
+  pointer-events: none;
+}
+
+.screen {
+  position: relative;
+  aspect-ratio: 240 / 135;
+  background: var(--screen-bg);
+  border-radius: 4px;
+  overflow: hidden;
+  padding: 8px 6px 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--screen-text);
+  line-height: 1.35;
+  box-shadow:
+    inset 0 0 22px rgba(0,0,0,0.6),
+    0 0 0 2px #050402,
+    0 0 0 4px #100C08;
+}
+
+.screen-status {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  color: var(--screen-sepia);
+  border-bottom: 1px solid rgba(120, 90, 50, 0.18);
+  padding-bottom: 3px;
+  margin-bottom: 5px;
+}
+.screen-status .right { color: var(--screen-dim); }
+
+.screen-title {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--screen-glow);
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  margin-bottom: 2px;
+}
+.screen-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5px;
+  color: var(--screen-dim);
+  margin-bottom: 4px;
+}
+.screen-meta .meta-right { color: var(--screen-sepia); opacity: 0.7; }
+
+.screen-body { font-size: 9.5px; line-height: 1.35; font-family: 'JetBrains Mono', monospace; }
+.screen-body p { margin: 0 0 4px; }
+.screen-body a.link {
+  color: var(--screen-sepia);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(170, 110, 60, 0.45);
+  padding-bottom: 0.5px;
+}
+.screen-body a.link.active {
+  color: var(--screen-bg);
+  background: var(--screen-glow);
+  border-bottom-color: var(--screen-glow);
+  padding: 0 2px;
+  /* gentle pulse so the live device feels alive */
+  animation: link-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes link-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.82; }
+}
+
+.screen-hint {
+  position: absolute;
+  bottom: 5px; left: 6px; right: 6px;
+  border-top: 1px solid rgba(120, 90, 50, 0.18);
+  padding-top: 3px;
+  font-size: 7.5px;
+  color: var(--screen-dim);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Scrollbar on right edge of the screen (mirrors the app) */
+.screen-scrollbar {
+  position: absolute;
+  right: 6px;
+  top: 28px;
+  bottom: 16px;
+  width: 1px;
+  background: rgba(120, 90, 50, 0.20);
+}
+.screen-scrollbar::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: 18%;
+  height: 38%;
+  background: var(--screen-sepia);
+}
+
+.device-label {
+  position: absolute;
+  bottom: 14px; left: 0; right: 0;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  color: rgba(225, 200, 160, 0.32);
+  letter-spacing: 0.24em;
+}
+
+/* Tiny keyboard suggestion below the screen */
+.device-keys {
+  position: absolute;
+  left: 24px; right: 24px;
+  bottom: 28px;
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 2px;
+}
+.device-keys span {
+  height: 4px;
+  background: linear-gradient(180deg, #3a2f24, #1a140e);
+  border-radius: 1px;
+}
+
+/* --- Section divider ornament --- */
+
+.ornament {
+  text-align: center;
+  margin: 80px 0;
+  color: var(--sepia);
+  font-size: 22px;
+  letter-spacing: 1em;
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+}
+
+/* --- Features --- */
+
+.features {
+  padding: 24px 0 16px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+  margin-bottom: 48px;
+}
+.section-head h2 {
+  font-family: 'Fraunces', serif;
+  font-variation-settings: 'opsz' 144;
+  font-weight: 600;
+  font-style: italic;
+  font-size: clamp(40px, 6vw, 72px);
+  margin: 0;
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+}
+.section-head .num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--sepia);
+  letter-spacing: 0.16em;
+  flex-shrink: 0;
+  padding-top: 8px;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--paper-edge);
+  border: 1px solid var(--paper-edge);
+}
+
+.feature {
+  background: var(--paper);
+  padding: 30px 26px 28px;
+  position: relative;
+  transition: background .35s;
+}
+.feature:hover { background: var(--paper-deep); }
+.feature h3 {
+  font-family: 'Fraunces', serif;
+  font-variation-settings: 'opsz' 144;
+  font-weight: 500;
+  font-style: italic;
+  font-size: 26px;
+  line-height: 1.1;
+  margin: 6px 0 8px;
+  letter-spacing: -0.015em;
+}
+.feature p {
+  font-size: 15.5px;
+  line-height: 1.55;
+  margin: 0;
+  color: var(--ink-soft);
+}
+.feature .key {
+  position: absolute;
+  top: 16px; right: 18px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--sepia);
+  letter-spacing: 0.08em;
+}
+.feature .glyph {
+  font-family: 'Fraunces', serif;
+  font-variation-settings: 'opsz' 144, 'SOFT' 100;
+  font-weight: 300;
+  font-style: italic;
+  font-size: 44px;
+  color: var(--sepia-glow);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+/* --- Walk diagram --- */
+
+.walk {
+  padding: 88px 0 48px;
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 84px;
+  align-items: center;
+}
+
+.walk-text h3 {
+  font-family: 'Fraunces', serif;
+  font-variation-settings: 'opsz' 144;
+  font-weight: 600;
+  font-style: italic;
+  font-size: 44px;
+  line-height: 1.0;
+  letter-spacing: -0.02em;
+  margin: 14px 0 22px;
+}
+.walk-text p {
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.walk-diagram {
+  position: relative;
+  height: 320px;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+}
+.walk-node {
+  position: absolute;
+  padding: 10px 14px 11px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-size: 16px;
+  color: var(--ink);
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 var(--paper-edge);
+}
+.walk-node .pid {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--ink-faint);
+  letter-spacing: 0.14em;
+  margin-top: 2px;
+}
+.walk-node.start { left: 0;   top: 18%; }
+.walk-node.mid1  { left: 32%; top: 5%; }
+.walk-node.mid2  { left: 28%; top: 60%; }
+.walk-node.end   { right: 0;  top: 36%; background: var(--sepia-glow); color: var(--paper); border-color: var(--sepia-glow); box-shadow: 2px 2px 0 var(--ink); }
+.walk-node.end .pid { color: var(--paper-deep); }
+
+.walk-svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.walk-svg path {
+  fill: none;
+  stroke: var(--sepia);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 5;
+  opacity: 0.6;
+}
+.walk-svg .arrow {
+  fill: var(--sepia);
+}
+
+/* --- Tech band: monospace-coded technical detail --- */
+
+.tech {
+  padding: 96px 0 80px;
+  background: var(--screen-warm);
+  color: var(--screen-text);
+  margin: 0 -200vw;
+  padding-left: calc(50vw - 580px + 48px);
+  padding-right: calc(50vw - 580px + 48px);
+  position: relative;
+}
+.tech::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(180deg,
+      transparent 0,
+      transparent 21px,
+      rgba(200, 160, 100, 0.04) 21px,
+      rgba(200, 160, 100, 0.04) 22px);
+  pointer-events: none;
+}
+.tech .section-head h2 { color: var(--screen-glow); }
+.tech .section-head .num { color: var(--screen-sepia); }
+
+.tech-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  margin-top: 36px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--screen-text);
+}
+.tech-grid h4 {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 500;
+  font-variation-settings: 'opsz' 144;
+  font-size: 22px;
+  color: var(--screen-glow);
+  margin: 0 0 14px;
+  letter-spacing: -0.01em;
+}
+.tech-grid ul { list-style: none; padding: 0; margin: 0; }
+.tech-grid li {
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(200, 160, 100, 0.12);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.tech-grid li span:last-child { color: var(--screen-sepia); opacity: 0.85; text-align: right; }
+
+/* --- Install steps --- */
+
+.install {
+  padding: 96px 0 64px;
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 64px;
+  align-items: start;
+}
+.install-text h3 {
+  font-family: 'Fraunces', serif;
+  font-variation-settings: 'opsz' 144;
+  font-weight: 600;
+  font-style: italic;
+  font-size: 48px;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  margin: 12px 0 18px;
+}
+.install-text p {
+  font-size: 17px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.install-text p a {
+  color: var(--sepia-glow);
+  text-decoration: none;
+  border-bottom: 1px solid var(--sepia);
+}
+
+.steps { counter-reset: step; padding: 0; margin: 0; list-style: none; }
+.steps li {
+  position: relative;
+  padding: 18px 0 18px 64px;
+  border-top: 1px solid var(--rule);
+  font-size: 18px;
+  line-height: 1.45;
+}
+.steps li:last-child { border-bottom: 1px solid var(--rule); }
+.steps li::before {
+  counter-increment: step;
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: 0; top: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--sepia);
+  letter-spacing: 0.12em;
+}
+.steps code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-edge);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+/* --- Footer --- */
+
+footer {
+  padding: 64px 0 80px;
+  border-top: 1px solid var(--rule);
+  margin-top: 64px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-faint);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+footer .colophon { max-width: 480px; font-family: 'EB Garamond', serif; font-style: italic; font-size: 15px; color: var(--ink-soft); text-transform: none; letter-spacing: normal; line-height: 1.55; }
+footer a { color: var(--ink); border-bottom: 1px solid var(--rule); text-decoration: none; padding-bottom: 1px; }
+footer a:hover { color: var(--sepia-glow); border-color: var(--sepia-glow); }
+
+/* --- Reveal on scroll --- */
+
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity .9s ease, transform .9s ease; }
+.reveal.shown { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .screen-body a.link.active { animation: none; }
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 880px) {
+  .shell { padding: 0 24px; }
+  .intro { grid-template-columns: 1fr; gap: 48px; padding: 16px 0 64px; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .walk { grid-template-columns: 1fr; gap: 48px; }
+  .walk-diagram { height: 380px; }
+  .install { grid-template-columns: 1fr; gap: 32px; }
+  .hero { padding: 64px 0 32px; }
+  .tech { margin: 0 -24px; padding-left: 24px; padding-right: 24px; }
+  footer { flex-direction: column; gap: 32px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Top rail -->
+  <div class="top-rail">
+    <div>WIKIWANDER&nbsp;&nbsp;·&nbsp;&nbsp;<span class="version">v0.1</span></div>
+    <div>
+      <a href="https://github.com/CHARL3X" target="_blank" rel="noopener">github</a>&nbsp;&nbsp;·&nbsp;&nbsp;
+      <a href="#install">install</a>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <header class="hero reveal">
+    <div class="eyebrow">an esp32-s3 pocket library — v0.1</div>
+    <h1 class="hero-title">Wikiwander<span class="amp">.</span></h1>
+    <div class="hero-tag">a small pocket library for the M5Stack Cardputer&nbsp;ADV</div>
+  </header>
+
+  <!-- Intro band -->
+  <section class="intro reveal">
+    <div class="prose">
+      <p class="lead">
+        <span class="dropcap">W</span>ikipedia&apos;s entire pool of articles, distilled into 240 by 135 pixels of warm sepia text. Pull a random page from the curated lead-summary feed, see what happened on this date in history, search by name, save to a tiny library on the SD card, walk through tappable links one after another.
+      </p>
+      <p>
+        Wikiwander reads like a small book carried in a pocket. The display is unbuffered, so every frame is composed in RAM and pushed once. The body text is full of the same inline references the encyclopedia carries on the web — press <span class="kbd">Tab</span> and the next one lights up; press <span class="kbd">⏎</span> to follow it. The walk has a trail; press <span class="kbd">b</span> to go back.
+      </p>
+
+      <div class="aside">
+        <span class="label">Colophon</span>
+        Body set in EB Garamond, display in Fraunces at maximum optical-size axis. The device&apos;s on-screen text is rendered in M5Stack&apos;s FreeSerifBoldItalic for titles, Font2 bitmap for body — Editorial italic on a 240-pixel screen, the smallest book ever printed.
+      </div>
+    </div>
+
+    <div class="device-wrap">
+      <div class="device" aria-label="Cardputer ADV mockup">
+        <div class="screen">
+          <div class="screen-status">
+            <span>WIKI</span>
+            <span class="right">link 3/14</span>
+          </div>
+          <div class="screen-title">Hypertext.</div>
+          <div class="screen-meta">
+            <span>text w/ references</span>
+            <span class="meta-right">~1 min · 14 links</span>
+          </div>
+          <div class="screen-body">
+            <p>
+              Hypertext is text displayed on a <a class="link">computer display</a> with references (<a class="link active">hyperlinks</a>) to other text that the reader can immediately access. Hypertext documents are interconnected by hyperlinks, which are typically activated by a <a class="link">mouse</a> click.
+            </p>
+          </div>
+          <div class="screen-scrollbar"></div>
+          <div class="screen-hint">
+            <span>tab link · enter · pick</span>
+            <span>r · s · q</span>
+          </div>
+        </div>
+        <div class="device-keys">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="device-label">CARDPUTER · ADV</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ornament -->
+  <div class="ornament">❦</div>
+
+  <!-- Features -->
+  <section class="features reveal">
+    <div class="section-head">
+      <span class="num">§ I</span>
+      <h2>What it does.</h2>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature">
+        <span class="key">r</span>
+        <span class="glyph">∽</span>
+        <h3>Random.</h3>
+        <p>Pulls a curated summary from Wikipedia&apos;s random pool. A built-in filter quietly re-rolls past biographies — the encyclopedia is &thinsp;30% people if you let it be.</p>
+      </div>
+      <div class="feature">
+        <span class="key">t</span>
+        <span class="glyph">⏚</span>
+        <h3>Today.</h3>
+        <p>What happened on this date. A scrollable list of curated events, each with a year and a primary article you can open and walk from.</p>
+      </div>
+      <div class="feature">
+        <span class="key">/</span>
+        <span class="glyph">⌕</span>
+        <h3>Search.</h3>
+        <p>Type to query MediaWiki&apos;s opensearch. Live results below the input — <span class="kbd">Tab</span> to focus the list, arrows or 1–9 to pick.</p>
+      </div>
+      <div class="feature">
+        <span class="key">Tab</span>
+        <span class="glyph">∝</span>
+        <h3>Inline links.</h3>
+        <p>The lead-section HTML is fetched separately, tokenized into text and link runs, rendered with per-segment color. <span class="kbd">Tab</span> cycles each link in turn; <span class="kbd">⏎</span> follows.</p>
+      </div>
+      <div class="feature">
+        <span class="key">b</span>
+        <span class="glyph">↶</span>
+        <h3>Walk trail.</h3>
+        <p>Every forward jump pushes onto an in-memory breadcrumb. Step back through your walk one article at a time — a small chevron in the corner shows how deep you are.</p>
+      </div>
+      <div class="feature">
+        <span class="key">s</span>
+        <span class="glyph">❧</span>
+        <h3>Library.</h3>
+        <p>Save articles to <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--paper-deep);padding:1px 4px;border-radius:3px;">/Wikiwander/articles/</code> as markdown with a frontmatter header. The HTML sidecar preserves the links so saved articles stay tappable.</p>
+      </div>
+      <div class="feature">
+        <span class="key">q</span>
+        <span class="glyph">▦</span>
+        <h3>QR share.</h3>
+        <p>Generate a code of the article&apos;s canonical URL. Scan it with a phone to continue reading on something larger, or to send a friend down the rabbit hole.</p>
+      </div>
+      <div class="feature">
+        <span class="key">u</span>
+        <span class="glyph">↻</span>
+        <h3>Resume.</h3>
+        <p>The device remembers your last article. Battery dies mid-walk, you power on, press <span class="kbd">u</span>, you&apos;re right where you left off.</p>
+      </div>
+      <div class="feature">
+        <span class="key">c</span>
+        <span class="glyph">¶</span>
+        <h3>Settings.</h3>
+        <p>Text size in three steps, people filter, audio mute. The body font scales between Font2 bitmap and FreeSans 9/12pt vector — pick what your eyes prefer.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ornament -->
+  <div class="ornament">❦</div>
+
+  <!-- Walk diagram -->
+  <section class="walk reveal">
+    <div class="walk-text">
+      <div class="eyebrow">§ II — the walk</div>
+      <h3>One article links to the next.</h3>
+      <p>
+        Open any article, press <span class="kbd">⏎</span> at the end, and three forks open: <em>wander from this</em>, <em>random</em>, or <em>today&apos;s events</em>. The contextual path uses MediaWiki&apos;s <code style="font-family:'JetBrains Mono',monospace;font-size:13px;">morelike:</code> search to surface six semantically related pages.
+      </p>
+      <p>
+        Every step pushes the previous article onto a trail. From any point you can go forward (random / related / link), back (one article at a time), or up to home. The trail caps at twelve entries — enough to recover from a wrong turn, small enough that fifty articles into a session your heap is still calm.
+      </p>
+    </div>
+
+    <div class="walk-diagram" aria-label="Walk diagram: starting article through related pages">
+      <svg class="walk-svg" viewBox="0 0 480 320" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 80,82 Q 150,30 175,38"/>
+        <path d="M 145,88 Q 160,180 145,225"/>
+        <path d="M 250,225 Q 320,220 355,170"/>
+        <polygon class="arrow" points="172,38 165,32 168,45"/>
+        <polygon class="arrow" points="146,225 138,215 156,218"/>
+        <polygon class="arrow" points="356,170 350,160 365,175"/>
+      </svg>
+      <div class="walk-node start">
+        Hypertext
+        <span class="pid">/wiki/Hypertext</span>
+      </div>
+      <div class="walk-node mid1">
+        Vannevar Bush
+        <span class="pid">/wiki/Vannevar_Bush</span>
+      </div>
+      <div class="walk-node mid2">
+        Memex
+        <span class="pid">/wiki/Memex</span>
+      </div>
+      <div class="walk-node end">
+        Ted Nelson
+        <span class="pid">/wiki/Ted_Nelson</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ornament -->
+  <div class="ornament">❦</div>
+
+</div>
+
+<!-- Tech band: full-bleed dark -->
+<section class="tech reveal">
+  <div style="max-width: 1064px; margin: 0 auto;">
+    <div class="section-head">
+      <span class="num">§ III</span>
+      <h2 style="color: var(--screen-glow);">Underneath.</h2>
+    </div>
+
+    <div class="tech-grid">
+      <div>
+        <h4>Hardware</h4>
+        <ul>
+          <li><span>SoC</span><span>ESP32-S3</span></li>
+          <li><span>Flash</span><span>8 MB · single factory partition</span></li>
+          <li><span>RAM used</span><span>~50 KB (15.3%)</span></li>
+          <li><span>Display</span><span>240 × 135 ST7789, unbuffered</span></li>
+          <li><span>Storage</span><span>microSD via FSPI</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Stack</h4>
+        <ul>
+          <li><span>Platform</span><span>espressif32 @ 6.12.0</span></li>
+          <li><span>Framework</span><span>arduino-esp32</span></li>
+          <li><span>JSON</span><span>ArduinoJson 7 (filtered stream)</span></li>
+          <li><span>Networking</span><span>WiFiClientSecure, chunked decoder</span></li>
+          <li><span>Tests</span><span>75 + native against fixtures</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Wikipedia endpoints</h4>
+        <ul>
+          <li><span>random</span><span>/api/rest_v1/page/random/summary</span></li>
+          <li><span>summary</span><span>/api/rest_v1/page/summary/{title}</span></li>
+          <li><span>lead html</span><span>/w/api.php?action=parse&amp;section=0</span></li>
+          <li><span>more like</span><span>action=query&amp;srsearch=morelike:</span></li>
+          <li><span>on this day</span><span>/feed/onthisday/selected/MM/DD</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Layout</h4>
+        <ul>
+          <li><span>Status bar</span><span>14 px</span></li>
+          <li><span>Body</span><span>101 px (variable, by font)</span></li>
+          <li><span>Hint bar</span><span>20 px (two rows of Font0)</span></li>
+          <li><span>Render</span><span>240 × 135 M5Canvas, push 25 fps</span></li>
+          <li><span>Output</span><span>Wikiwander.bin ≈ 1.21 MB</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="shell">
+
+  <!-- Install -->
+  <section class="install reveal" id="install">
+    <div class="install-text">
+      <div class="eyebrow">§ IV — how to flash</div>
+      <h3>Pocket-sized.</h3>
+      <p>
+        Wikiwander runs as a guest app under <a href="https://github.com/bmorcelli/Launcher" target="_blank" rel="noopener">bmorcelli&apos;s&nbsp;Launcher</a>, so the install is two files on an SD card and one menu pick. WiFi credentials live in a shared <code>wifi.txt</code> at the SD root — no setup app required.
+      </p>
+    </div>
+
+    <ol class="steps">
+      <li>Flash bmorcelli&apos;s Launcher to the Cardputer ADV using the web flasher. One-time, ~30 seconds.</li>
+      <li>Drop <code>Wikiwander.bin</code> into <code>/apps/</code> on the SD card.</li>
+      <li>Create <code>/Cardputer/wifi.txt</code>: SSID and password on alternating lines.</li>
+      <li>Boot the launcher, choose SD &rsaquo; Wikiwander.bin, install. Done.</li>
+    </ol>
+  </section>
+
+  <footer>
+    <div class="colophon">
+      <strong>Wikiwander</strong> is built and maintained by CHARL3X. The Wikipedia REST API does all the actual work. ArduinoJson 7 streams the JSON. M5Stack makes the hardware. bmorcelli&apos;s Launcher hosts the install. The code is <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT-licensed</a>.
+    </div>
+    <div>
+      © 2026 CHARL3X<br>
+      <a href="https://github.com/CHARL3X" target="_blank" rel="noopener">github / CHARL3X</a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// Reveal-on-scroll. Single observer, generous rootMargin so things
+// fade in well before reaching the viewport edge.
+(function () {
+  if (!('IntersectionObserver' in window)) {
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('shown'));
+    return;
+  }
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('shown');
+        io.unobserve(e.target);
+      }
+    });
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+})();
+
+// Subtle cycle of which link is "active" on the device mockup, so
+// the device feels alive instead of just static. We rotate which
+// inline link gets the active highlight every few seconds.
+(function () {
+  const links = document.querySelectorAll('.screen-body a.link');
+  if (links.length < 2) return;
+  let i = 0;
+  setInterval(() => {
+    links.forEach(l => l.classList.remove('active'));
+    i = (i + 1) % links.length;
+    links[i].classList.add('active');
+  }, 3200);
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="paper2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F2E9CF"/>
+      <stop offset="100%" stop-color="#EAE0BC"/>
+    </linearGradient>
+    <linearGradient id="dev2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2A211A"/>
+      <stop offset="100%" stop-color="#120D08"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="360" fill="url(#paper2)"/>
+
+  <!-- Three device mockups side by side -->
+
+  <!-- === SCREEN 1: HOME === -->
+  <g transform="translate(70, 60)">
+    <text x="180" y="-18" font-family="'Courier New', monospace" font-size="10" fill="#8E6E3A" letter-spacing="2.4" text-anchor="middle">HOME</text>
+    <rect x="0" y="0" width="360" height="220" rx="12" fill="url(#dev2)"/>
+    <rect x="15" y="20" width="330" height="184" rx="3" fill="#0A0805"/>
+
+    <g transform="translate(17, 22)">
+      <!-- Status bar with battery + wifi -->
+      <text x="6" y="11" font-family="'Courier New', monospace" font-size="9" fill="#C68C5A">WIKIWANDER</text>
+      <!-- battery -->
+      <rect x="290" y="3" width="14" height="8" stroke="#7D6A4A" fill="none"/>
+      <rect x="292" y="5" width="10" height="4" fill="#C68C5A"/>
+      <!-- wifi bars -->
+      <rect x="275" y="9" width="2" height="3" fill="#C68C5A"/>
+      <rect x="278" y="7" width="2" height="5" fill="#C68C5A"/>
+      <rect x="281" y="5" width="2" height="7" fill="#C68C5A"/>
+      <line x1="0" y1="15" x2="320" y2="15" stroke="rgba(120,90,50,0.18)"/>
+
+      <!-- Title + date subline -->
+      <text x="160" y="34" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-weight="600" font-size="17" fill="#E6A560" text-anchor="middle">where to?</text>
+      <text x="6" y="48" font-family="'Courier New', monospace" font-size="7.5" fill="#645542">thu . may 28</text>
+      <text x="314" y="48" font-family="'Courier New', monospace" font-size="7.5" fill="#C68C5A" text-anchor="end">[u] Hypertext</text>
+
+      <!-- Action rows -->
+      <g font-family="'EB Garamond', Georgia, serif" font-size="13" fill="#D8C9A8">
+        <!-- selected row 0: random (highlighted) -->
+        <rect x="8" y="58" width="304" height="16" rx="3" fill="#5C4326"/>
+        <text x="16" y="70" fill="#0A0805" font-family="'Courier New', monospace" font-size="9">[r]</text>
+        <text x="44" y="70" fill="#0A0805">random</text>
+        <!-- row 1 -->
+        <text x="16" y="86" fill="#C68C5A" font-family="'Courier New', monospace" font-size="9">[t]</text>
+        <text x="44" y="86">today</text>
+        <!-- row 2 -->
+        <text x="16" y="102" fill="#C68C5A" font-family="'Courier New', monospace" font-size="9">[/]</text>
+        <text x="44" y="102">search</text>
+        <!-- row 3 -->
+        <text x="16" y="118" fill="#C68C5A" font-family="'Courier New', monospace" font-size="9">[s]</text>
+        <text x="44" y="118">saved</text>
+        <text x="314" y="118" fill="#645542" text-anchor="end" font-family="'Courier New', monospace" font-size="9">(12)</text>
+      </g>
+
+      <!-- Hint bar -->
+      <line x1="0" y1="156" x2="320" y2="156" stroke="rgba(120,90,50,0.18)"/>
+      <text x="6" y="167" font-family="'Courier New', monospace" font-size="7.5" fill="#645542">arrows pick . enter open</text>
+      <text x="6" y="178" font-family="'Courier New', monospace" font-size="7.5" fill="#645542">u resume . c settings . m mute</text>
+    </g>
+    <text x="180" y="216" font-family="'Courier New', monospace" font-size="8" fill="rgba(225,200,160,0.32)" letter-spacing="3" text-anchor="middle">CARDPUTER · ADV</text>
+  </g>
+
+  <!-- === SCREEN 2: TODAY === -->
+  <g transform="translate(420, 60)">
+    <text x="180" y="-18" font-family="'Courier New', monospace" font-size="10" fill="#8E6E3A" letter-spacing="2.4" text-anchor="middle">ON THIS DAY</text>
+    <rect x="0" y="0" width="360" height="220" rx="12" fill="url(#dev2)"/>
+    <rect x="15" y="20" width="330" height="184" rx="3" fill="#0A0805"/>
+
+    <g transform="translate(17, 22)">
+      <text x="6" y="11" font-family="'Courier New', monospace" font-size="9" fill="#C68C5A">MAY 28</text>
+      <text x="314" y="11" font-family="'Courier New', monospace" font-size="9" fill="#645542" text-anchor="end">8 events</text>
+      <line x1="0" y1="15" x2="320" y2="15" stroke="rgba(120,90,50,0.18)"/>
+
+      <!-- Event rows -->
+      <g font-family="'Courier New', monospace" font-size="9" fill="#D8C9A8">
+        <rect x="0" y="22" width="320" height="22" rx="2" fill="#5C4326"/>
+        <text x="6" y="34" fill="#0A0805">1937</text>
+        <text x="58" y="34" fill="#0A0805" font-family="'EB Garamond', Georgia, serif" font-size="11">Golden Gate Bridge opens</text>
+        <text x="6" y="44" fill="#1F160B" font-size="7.5" opacity="0.8">Golden Gate Bridge connects San Fr...</text>
+
+        <text x="6" y="60" fill="#C68C5A">1961</text>
+        <text x="58" y="60" font-family="'EB Garamond', Georgia, serif" font-size="11">Amnesty International founded</text>
+        <text x="6" y="70" fill="#645542" font-size="7.5">Peter Benenson publishes "The For...</text>
+
+        <text x="6" y="86" fill="#C68C5A">1987</text>
+        <text x="58" y="86" font-family="'EB Garamond', Georgia, serif" font-size="11">Mathias Rust lands in Red Sq.</text>
+        <text x="6" y="96" fill="#645542" font-size="7.5">West German aviator lands a Cessn...</text>
+
+        <text x="6" y="112" fill="#C68C5A">1830</text>
+        <text x="58" y="112" font-family="'EB Garamond', Georgia, serif" font-size="11">Indian Removal Act</text>
+        <text x="6" y="122" fill="#645542" font-size="7.5">President Jackson signs the law th...</text>
+
+        <text x="6" y="138" fill="#C68C5A">2008</text>
+        <text x="58" y="138" font-family="'EB Garamond', Georgia, serif" font-size="11">Nepal becomes a republic</text>
+        <text x="6" y="148" fill="#645542" font-size="7.5">Constituent Assembly abolishes the...</text>
+      </g>
+
+      <line x1="0" y1="156" x2="320" y2="156" stroke="rgba(120,90,50,0.18)"/>
+      <text x="6" y="167" font-family="'Courier New', monospace" font-size="7.5" fill="#645542">arrows nav . enter open</text>
+      <text x="314" y="167" font-family="'Courier New', monospace" font-size="7.5" fill="#C68C5A" text-anchor="end">1/8</text>
+      <text x="6" y="178" font-family="'Courier New', monospace" font-size="7.5" fill="#645542">del back to home</text>
+    </g>
+    <text x="180" y="216" font-family="'Courier New', monospace" font-size="8" fill="rgba(225,200,160,0.32)" letter-spacing="3" text-anchor="middle">CARDPUTER · ADV</text>
+  </g>
+
+  <!-- === SCREEN 3: NEXT MOVE PICKER === -->
+  <g transform="translate(770, 60)">
+    <text x="180" y="-18" font-family="'Courier New', monospace" font-size="10" fill="#8E6E3A" letter-spacing="2.4" text-anchor="middle">WHAT NEXT?</text>
+    <rect x="0" y="0" width="360" height="220" rx="12" fill="url(#dev2)"/>
+    <rect x="15" y="20" width="330" height="184" rx="3" fill="#0A0805"/>
+
+    <g transform="translate(17, 22)">
+      <text x="6" y="11" font-family="'Courier New', monospace" font-size="9" fill="#C68C5A">NEXT MOVE</text>
+      <line x1="0" y1="15" x2="320" y2="15" stroke="rgba(120,90,50,0.18)"/>
+
+      <!-- Title -->
+      <text x="160" y="32" font-family="'EB Garamond', Georgia, serif" font-style="italic" font-weight="600" font-size="16" fill="#E6A560" text-anchor="middle">what next?</text>
+
+      <!-- "from:" line -->
+      <text x="6" y="48" font-family="'Courier New', monospace" font-size="8" fill="#645542">from: Hypertext</text>
+
+      <!-- Options -->
+      <g font-family="'EB Garamond', Georgia, serif" font-size="13">
+        <!-- Selected (wander) -->
+        <rect x="8" y="58" width="304" height="22" rx="3" fill="#5C4326"/>
+        <text x="20" y="73" fill="#0A0805" font-family="'Courier New', monospace" font-size="10">[1]</text>
+        <text x="56" y="73" fill="#0A0805">wander from this</text>
+        <!-- Option 2 -->
+        <text x="20" y="98" fill="#C68C5A" font-family="'Courier New', monospace" font-size="10">[2]</text>
+        <text x="56" y="98" fill="#D8C9A8">random article</text>
+        <!-- Option 3 -->
+        <text x="20" y="123" fill="#C68C5A" font-family="'Courier New', monospace" font-size="10">[3]</text>
+        <text x="56" y="123" fill="#D8C9A8">today&apos;s events</text>
+      </g>
+
+      <line x1="0" y1="156" x2="320" y2="156" stroke="rgba(120,90,50,0.18)"/>
+      <text x="6" y="167" font-family="'Courier New', monospace" font-size="7.5" fill="#645542">1-3 jump . arrows nav</text>
+      <text x="6" y="178" font-family="'Courier New', monospace" font-size="7.5" fill="#645542">enter pick . del back to article</text>
+    </g>
+    <text x="180" y="216" font-family="'Courier New', monospace" font-size="8" fill="rgba(225,200,160,0.32)" letter-spacing="3" text-anchor="middle">CARDPUTER · ADV</text>
+  </g>
+
+</svg>

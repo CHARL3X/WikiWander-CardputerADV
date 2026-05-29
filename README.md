@@ -1,53 +1,91 @@
-# Wikiwander
+<div align="center">
 
-A small pocket library for the M5Stack Cardputer ADV. Random Wikipedia
-articles, today's events, search, save-to-SD library, walk-trail
-backtracking — text-only, sepia-on-black, designed for the 240×135
-screen of a pocket device.
+<img src="docs/hero.svg" alt="Wikiwander — a small pocket library for the M5Stack Cardputer ADV" width="100%">
 
-Runs as a guest app under bmorcelli's
-[Launcher](https://github.com/bmorcelli/Launcher) — drop the `.bin` on
-the SD card, install via the launcher, and you're done.
+<br><br>
 
-## What you get
+<sub>
+<kbd>r</kbd> random &nbsp;·&nbsp;
+<kbd>t</kbd> today &nbsp;·&nbsp;
+<kbd>/</kbd> search &nbsp;·&nbsp;
+<kbd>s</kbd> saved &nbsp;·&nbsp;
+<kbd>Tab</kbd> link &nbsp;·&nbsp;
+<kbd>q</kbd> qr &nbsp;·&nbsp;
+<kbd>u</kbd> resume &nbsp;·&nbsp;
+<kbd>c</kbd> settings
+</sub>
 
-- **Random** — fresh article from Wikipedia's curated random pool,
-  with a built-in filter that re-rolls past biographies (toggle with
-  `p`)
-- **Today's events** — Wikipedia's "On This Day" curated feed for
-  the device's current date
-- **Search** — live MediaWiki opensearch, tab between input and the
-  results list
-- **Saved library** — articles stored as `.md` files on SD with
-  frontmatter (`/Wikiwander/articles/`)
-- **Walk trail** — every random/where-next pushes onto an in-memory
-  trail; `b` steps backward through your journey
-- **QR share** — `q` in the article reader shows a scannable code of
-  the canonical Wikipedia URL so you can continue reading on a phone
-- **Audio feedback** — subtle ES8311 speaker blips for save/reroll/
-  back/error/nav; mute with `m`
-- **Battery + WiFi indicators** in the home status bar
-- All rendered via `M5Canvas` full-screen sprites — no ST7789 tearing
+<br><br>
 
-## Install (the easy way)
+</div>
 
-1. Set up [bmorcelli's Launcher](https://github.com/bmorcelli/Launcher)
-   on your Cardputer ADV (one-time)
-2. Copy `dist/Wikiwander.bin` from a release onto the SD card's
-   `/apps/` folder
-3. From the launcher, install the .bin
-4. Boot Wikiwander — first run will ask you to set up WiFi (see below)
+> *Wikipedia&#39;s entire pool of articles, distilled into 240 by 135 pixels of warm sepia text. Random pages, today's events, search, save-to-SD library, tappable inline links, walk-trail backtracking — a small book carried in a pocket.*
 
-## WiFi setup
+<br>
 
-Wikiwander reads credentials from `/Cardputer/wifi.txt` on the SD card,
-sharing the convention used by [CharlieOS / CardputerLLM](https://github.com/CHARL3X/CardputerLLM).
+## The screens
 
-If you don't already have that file, pop the SD card into a computer
-and create it. Format is one SSID per line followed by its password,
-with blank lines separating networks:
+<img src="docs/screens.svg" alt="Three Wikiwander screens: home, today, what next picker" width="100%">
 
-```
+<br>
+
+## What it does
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+#### <kbd>r</kbd>&nbsp;&nbsp;Random
+Curated summary from Wikipedia's random pool. Built-in filter quietly re-rolls past biographies — the encyclopedia is &thinsp;30% people if you let it be.
+
+#### <kbd>t</kbd>&nbsp;&nbsp;Today
+What happened on this date. Scrollable curated events, each with a year and a primary article you can open.
+
+#### <kbd>/</kbd>&nbsp;&nbsp;Search
+Live MediaWiki opensearch. <kbd>Tab</kbd> to focus the result list, arrows or <kbd>1</kbd>–<kbd>9</kbd> to pick.
+
+#### <kbd>Tab</kbd>&nbsp;&nbsp;Inline links
+Lead-section HTML is fetched separately, tokenized into text and link runs, rendered with per-segment color. Tab cycles each link in turn; <kbd>↩</kbd> follows.
+
+#### <kbd>b</kbd>&nbsp;&nbsp;Walk trail
+Every forward jump pushes onto an in-memory breadcrumb. Step back through your walk one article at a time.
+
+</td>
+<td width="50%" valign="top">
+
+#### <kbd>s</kbd>&nbsp;&nbsp;Library
+Articles save to `/Wikiwander/articles/` as markdown with YAML frontmatter. An HTML sidecar preserves the links so saved articles stay tappable.
+
+#### <kbd>q</kbd>&nbsp;&nbsp;QR share
+Generate a code of the canonical Wikipedia URL. Scan with a phone to continue on a bigger screen.
+
+#### <kbd>u</kbd>&nbsp;&nbsp;Resume
+The device remembers your last article. Battery dies mid-walk, you power on, press <kbd>u</kbd>, you&apos;re right where you left off.
+
+#### <kbd>c</kbd>&nbsp;&nbsp;Settings
+Text size in three steps (small / medium / large — Font2 bitmap or FreeSans 9 / 12 pt vector), people filter, audio mute.
+
+#### <kbd>m</kbd>&nbsp;&nbsp;Audio
+Subtle ES8311 speaker blips for save / reroll / back / error / nav. Mute toggleable; preference persists in NVS.
+
+</td>
+</tr>
+</table>
+
+<br>
+
+## Install
+
+> Wikiwander runs as a guest app under [bmorcelli&apos;s&nbsp;Launcher](https://github.com/bmorcelli/Launcher), so the install is two files on an SD card and one menu pick.
+
+<table>
+<tr><td><b>01</b></td><td>Flash bmorcelli&apos;s Launcher to your Cardputer ADV using the web flasher. One-time, ~30 seconds.</td></tr>
+<tr><td><b>02</b></td><td>Drop <code>Wikiwander.bin</code> into <code>/apps/</code> on the SD card.</td></tr>
+<tr><td><b>03</b></td><td>Create <code>/Cardputer/wifi.txt</code> on the SD root — one SSID per line followed by its password, blank lines separating networks.</td></tr>
+<tr><td><b>04</b></td><td>Boot the launcher → SD → install Wikiwander.bin. Done.</td></tr>
+</table>
+
+```text
 HomeNetwork
 my-home-password
 
@@ -55,119 +93,131 @@ OfficeWiFi
 my-office-password
 ```
 
-Wikiwander scans nearby networks at boot and only attempts SSIDs that
-are actually in range — multi-location creds are fine, they don't
-slow each other down.
+Wikiwander scans nearby networks at boot and only attempts SSIDs actually in range — multi-location creds are fine, they don&apos;t slow each other down.
+
+<br>
 
 ## Build from source
 
-Requires PlatformIO. The project uses the stock `espressif32@6.12.0`
-platform (no pioarduino fork).
-
 ```bash
-cd Wikiwander
-pio run -e cardputer        # builds dist/Wikiwander.bin
+git clone git@github.com:CHARL3X/WikiWander---CardputerADV.git
+cd WikiWander---CardputerADV
+pio run -e cardputer     # builds dist/Wikiwander.bin (~1.2 MB)
 ```
 
-For the parser + transport tests on host (no device required), there's
-a separate native test loop. The host build uses `cl.exe` directly via
-the included `test/run_native.bat` (Windows + MSVC Build Tools), since
-PlatformIO's native env doesn't ship a host C++ compiler:
+Uses the stock `espressif32@6.12.0` platform. No pioarduino fork needed.
 
-```bat
-cd Wikiwander
-test\run_native.bat         :: 46 unit tests, ~2 seconds
-test\run_walker.bat         :: live walker against Wikipedia, ~5 seconds
+For the parser + transport tests on host (no device required), there&apos;s a separate MSVC-based loop:
+
+```cmd
+test\run_native.bat      :: 75+ unit tests, ~2 seconds
+test\run_walker.bat      :: live walker against Wikipedia, ~5 seconds
 ```
 
-## Keyboard reference
+<br>
 
-### Home
+## Underneath
 
-| Key | Action |
+<table>
+<tr>
+<th align="left" width="50%">Hardware</th>
+<th align="left" width="50%">Stack</th>
+</tr>
+<tr>
+<td valign="top">
+
+| | |
 |---|---|
-| `r` | Random article |
-| `t` | Today's events |
-| `/` | Search |
-| `s` | Saved library |
-| `m` | Toggle audio mute |
-| `p` | Toggle people-filter (default: filter on) |
-| arrows | Move selection |
-| enter | Open selected |
-| del | Back to bmorcelli's launcher |
+| SoC | ESP32-S3 |
+| Flash | 8 MB · single factory partition |
+| RAM used | ~50 KB / 320 KB |
+| Display | 240 × 135 ST7789, unbuffered |
+| Storage | microSD via FSPI |
 
-### Article reader
+</td>
+<td valign="top">
 
-| Key | Action |
+| | |
 |---|---|
-| arrows | Scroll line by line |
-| `[` `]` | Page up / down |
-| enter | Next page; at end, opens "what next?" picker |
-| `r` | Instant reroll (skips the picker) |
-| `s` | Save to library |
-| `q` | Show QR code of article URL |
-| `b` | Step back through walk trail (when history exists) |
-| del | Back to home |
+| Platform | espressif32 @ 6.12.0 |
+| Framework | arduino-esp32 |
+| JSON | ArduinoJson 7 (filtered stream) |
+| Network | WiFiClientSecure + chunked decoder |
+| Tests | 75+ native against fixtures |
 
-### What next? picker (after enter at end of article)
+</td>
+</tr>
+</table>
 
-| Key | Action |
+<details>
+<summary><b>Wikipedia endpoints in play</b></summary>
+
+| Used for | Endpoint |
 |---|---|
-| `1` | Wander from this — find related articles |
-| `2` | Random article |
-| `3` | Today's events |
-| arrows + enter | Pick highlighted |
-| del | Back to article |
+| Random | `/api/rest_v1/page/random/summary` |
+| By title | `/api/rest_v1/page/summary/{title}` |
+| Lead HTML (for inline links) | `/w/api.php?action=parse&section=0&prop=text` |
+| Morelike search | `/w/api.php?action=query&list=search&srsearch=morelike:{title}` |
+| OpenSearch | `/w/api.php?action=opensearch&search={q}` |
+| On This Day | `/api/rest_v1/feed/onthisday/selected/MM/DD` |
 
-### Search
+</details>
 
-| Key | Action |
-|---|---|
-| typing | Add to query |
-| del | Backspace |
-| Tab | Switch focus between input and result list |
-| arrows | Navigate results (in list focus) |
-| `1`–`9` | Jump to result (in list focus) |
-| enter | Open top result (input) / highlighted (list) |
+<details>
+<summary><b>Screen layout (240 × 135)</b></summary>
 
-## Architecture
+| Region | Height | Notes |
+|---|---|---|
+| Status bar | 14 px | Left label + right context |
+| Body | 101 px | Variable lines depending on font choice |
+| Hint bar | 20 px | Two rows of Font0 |
+| Render cadence | 25 fps | Single `pushSprite()` per frame, no flicker |
+
+</details>
+
+<details>
+<summary><b>Source layout</b></summary>
 
 ```
 lib/wiki/                 Pure C++, no Arduino/M5 dependencies
 ├── wiki_types.h          ArticleSummary, RelatedItem, SearchHit, TodayEvent
-├── wiki_parser.{h,cpp}   JSON → structs (ArduinoJson 7 with filter for
-│                         streamed parsing of the heavy onthisday feed)
-├── transport.h           ByteReader interface + BufferReader impl + Transport
-├── wiki_client.{h,cpp}   URL construction + parser glue
+├── wiki_parser.{h,cpp}   JSON → structs (ArduinoJson 7 + filter)
+├── extract_html.{h,cpp}  HTML tokenizer for inline links
+├── transport.h           ByteReader + Transport interface
+└── wiki_client.{h,cpp}   URL construction + parser glue
 
 src/net/transport_device.cpp
-                          WiFiClientSecure-backed Transport with
-                          chunked-aware ByteReaders for streaming
+                          WiFiClientSecure transport with chunked +
+                          streamed body readers
 
 src/storage/
-├── settings.{h,cpp}      NVS (namespace: wikiwander)
+├── settings.{h,cpp}      NVS-backed prefs (namespace: wikiwander)
 ├── sd_config.{h,cpp}     SD mount + wifi.txt loading
-└── wiki_store.{h,cpp}    Article save/load/list as .md
+└── wiki_store.{h,cpp}    Save/load articles (.md + .html sidecar)
 
 src/ui/
 ├── colors.h              Sepia palette + layout constants
-├── boot_ui.{h,cpp}       Direct-draw helpers for static screens
+├── boot_ui.{h,cpp}       Static-screen helpers
 ├── splash.{h,cpp}        Boot animation
-├── sound.{h,cpp}         Audio feedback (mute toggle in NVS)
+├── sound.{h,cpp}         Audio feedback
 ├── indicators.{h,cpp}    Battery + WiFi icons
-├── text_utils.{h,cpp}    UTF-8→ASCII, word-wrap, ellipsize
+├── text_utils.{h,cpp}    Word-wrap, ASCII sanitize, ellipsize
 └── wiki_screen.{h,cpp}   Screen state machine
 ```
 
+</details>
+
+<br>
+
 ## Credits
 
-- [Wikipedia REST API](https://en.wikipedia.org/api/rest_v1/) — does
-  all the actual work
-- [ArduinoJson](https://arduinojson.org/) — streaming JSON parser
-- [M5Stack](https://m5stack.com/) — the Cardputer ADV hardware
-- [bmorcelli's Launcher](https://github.com/bmorcelli/Launcher) —
-  the host shell
+[Wikipedia](https://www.mediawiki.org/wiki/API:REST_API) does all the actual work.
+[ArduinoJson](https://arduinojson.org/) streams the JSON.
+[M5Stack](https://m5stack.com/) makes the hardware.
+[bmorcelli&apos;s Launcher](https://github.com/bmorcelli/Launcher) hosts the install.
 
-## License
+<br>
 
-MIT. See `LICENSE`.
+<div align="center">
+<sub><i>Wikiwander v0.1 · MIT License · built by <a href="https://github.com/CHARL3X">CHARL3X</a></i></sub>
+</div>
