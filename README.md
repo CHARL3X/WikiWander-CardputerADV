@@ -110,8 +110,8 @@ Wikiwander scans nearby networks at boot and only attempts SSIDs actually in ran
 ## Build from source
 
 ```bash
-git clone git@github.com:CHARL3X/WikiWander---CardputerADV.git
-cd WikiWander---CardputerADV
+git clone git@github.com:CHARL3X/WikiWander-CardputerADV.git
+cd WikiWander-CardputerADV
 pio run -e cardputer     # builds dist/Wikiwander.bin (~1.2 MB)
 ```
 
