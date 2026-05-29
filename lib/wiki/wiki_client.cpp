@@ -52,80 +52,6 @@ bool WikiClient::doGet(const std::string& url, std::string& bodyOut) {
     return true;
 }
 
-// Pull the JSON-escaped "text" value out of an action=parse response.
-// Minimal parser: walks until "text":"...", then collects bytes until
-// the matching unescaped quote. Unescapes \" \\ \/ \n \t \uXXXX
-// sequences inline.
-static bool extractParseText(const std::string& json, std::string& out) {
-    auto key = json.find("\"text\":\"");
-    if (key == std::string::npos) return false;
-    out.clear();
-    out.reserve(json.size() / 2);
-    for (size_t i = key + 8; i < json.size(); ++i) {
-        char c = json[i];
-        if (c == '\\' && i + 1 < json.size()) {
-            char nx = json[i + 1];
-            if      (nx == '"')  { out += '"';  ++i; }
-            else if (nx == '\\') { out += '\\'; ++i; }
-            else if (nx == '/')  { out += '/';  ++i; }
-            else if (nx == 'n')  { out += '\n'; ++i; }
-            else if (nx == 't')  { out += '\t'; ++i; }
-            else if (nx == 'r')  { out += '\r'; ++i; }
-            else if (nx == 'u' && i + 5 < json.size()) {
-                // \uXXXX -- decode to UTF-8
-                unsigned long code = std::strtoul(json.substr(i + 2, 4).c_str(),
-                                                  nullptr, 16);
-                if (code < 0x80) {
-                    out += static_cast<char>(code);
-                } else if (code < 0x800) {
-                    out += static_cast<char>(0xC0 | (code >> 6));
-                    out += static_cast<char>(0x80 | (code & 0x3F));
-                } else {
-                    out += static_cast<char>(0xE0 | (code >> 12));
-                    out += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
-                    out += static_cast<char>(0x80 | (code & 0x3F));
-                }
-                i += 5;
-            } else { out += json[i]; }
-        } else if (c == '"') {
-            return true;
-        } else {
-            out += c;
-        }
-    }
-    return false;
-}
-
-bool WikiClient::fetchArticleLeadHtml(const std::string& pageId,
-                                      std::string& htmlOut) {
-    // action=parse with section=0 returns just the lead. prop=text
-    // gives the rendered HTML (with inline <a> tags preserved).
-    // formatversion=2 makes the response shape predictable.
-    std::string url = std::string(kHostAPI)
-        + "?action=parse&page=" + detail::urlEncode(pageId)
-        + "&section=0&prop=text&format=json&formatversion=2&disabletoc=1";
-    std::string body;
-    if (!doGet(url, body)) return false;
-    if (!extractParseText(body, htmlOut)) {
-        lastErr_ = "parse failed (lead html)";
-        return false;
-    }
-    return true;
-}
-
-// Helper: after a summary fetch succeeds, attempt to enrich it with
-// the lead-section HTML so the article reader can highlight inline
-// links. If the second fetch fails we leave extractHtml as the
-// summary's (link-stripped) version -- not a hard error since the
-// reader falls back to plain text rendering gracefully.
-void WikiClient_enrichWithLeadHtml(WikiClient* self, ArticleSummary& a) {
-    if (a.pageId.empty()) return;
-    std::string rich;
-    if (self->fetchArticleLeadHtml(a.pageId, rich) && !rich.empty()) {
-        a.extractHtml = std::move(rich);
-    }
-}
-
 bool WikiClient::fetchRandom(ArticleSummary& out) {
     std::string url = std::string(kHostREST) + "/page/random/summary";
     std::string body;
@@ -134,7 +60,6 @@ bool WikiClient::fetchRandom(ArticleSummary& out) {
         lastErr_ = "parse failed (random summary)";
         return false;
     }
-    WikiClient_enrichWithLeadHtml(this, out);
     return true;
 }
 
@@ -149,7 +74,6 @@ bool WikiClient::fetchByPageId(const std::string& pageId, ArticleSummary& out) {
         lastErr_ = "parse failed (summary)";
         return false;
     }
-    WikiClient_enrichWithLeadHtml(this, out);
     return true;
 }
 

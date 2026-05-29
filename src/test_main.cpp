@@ -9,7 +9,6 @@
 #include "wiki_parser.h"
 #include "wiki_types.h"
 #include "transport.h"
-#include "extract_html.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -198,149 +197,6 @@ void testOnThisDayLimit() {
     expectEq(events.size(), size_t{5}, "clamped to maxItems=5");
 }
 
-void testExtractHtmlPlain() {
-    startTest("tokenizeExtractHtml -- plain text (no links)");
-    auto tokens = wiki::tokenizeExtractHtml("Just some plain text here.");
-    expectEq(tokens.size(), size_t{1}, "single text token");
-    expectEq(tokens[0].kind, wiki::ExtractToken::Text, "is Text kind");
-    expectEq(tokens[0].text, std::string("Just some plain text here."),
-             "text preserved");
-}
-
-void testExtractHtmlOneLink() {
-    startTest("tokenizeExtractHtml -- one internal link");
-    auto t = wiki::tokenizeExtractHtml(
-        "Hypertext is text with <a href=\"/wiki/Hyperlinks\">hyperlinks</a> "
-        "to other text.");
-    expectEq(t.size(), size_t{3}, "Text + Link + Text");
-    expectEq(t[0].kind, wiki::ExtractToken::Text, "first is text");
-    expectEq(t[1].kind, wiki::ExtractToken::Link, "middle is link");
-    expectEq(t[1].text,   std::string("hyperlinks"), "link text");
-    expectEq(t[1].pageId, std::string("Hyperlinks"), "link pageId extracted");
-    expectEq(t[2].kind, wiki::ExtractToken::Text, "last is text");
-}
-
-void testExtractHtmlExternalLink() {
-    startTest("tokenizeExtractHtml -- external link folded to text");
-    auto t = wiki::tokenizeExtractHtml(
-        "See <a href=\"https://example.com\">example</a> for details.");
-    // External links aren't promoted to Link tokens -- their text is
-    // folded into surrounding plain text. So we expect a single Text
-    // token containing the whole sentence.
-    bool anyLink = false;
-    for (auto& tok : t) if (tok.kind == wiki::ExtractToken::Link) anyLink = true;
-    expectTrue(!anyLink, "no Link tokens for external href");
-    // The visible text "example" should still appear somewhere.
-    bool sawExample = false;
-    for (auto& tok : t) if (tok.text.find("example") != std::string::npos) sawExample = true;
-    expectTrue(sawExample, "external link text preserved as plain");
-}
-
-void testExtractHtmlNamespacedLink() {
-    startTest("tokenizeExtractHtml -- namespaced link folded to text");
-    auto t = wiki::tokenizeExtractHtml(
-        "See <a href=\"/wiki/File:Foo.jpg\">image</a> for details.");
-    bool anyLink = false;
-    for (auto& tok : t) if (tok.kind == wiki::ExtractToken::Link) anyLink = true;
-    expectTrue(!anyLink, "no Link tokens for File: namespace");
-}
-
-void testExtractHtmlStripsTags() {
-    startTest("tokenizeExtractHtml -- non-anchor tags stripped");
-    auto t = wiki::tokenizeExtractHtml(
-        "Some <i>italic</i> and <b>bold</b> text.");
-    expectEq(t.size(), size_t{1}, "single text token after stripping");
-    // Inner text of i/b should be kept; the tags themselves stripped.
-    expectContains(t[0].text, "italic", "italic word kept");
-    expectContains(t[0].text, "bold",   "bold word kept");
-    expectTrue(t[0].text.find('<') == std::string::npos, "no markup leaked");
-}
-
-void testExtractHtmlEntities() {
-    startTest("tokenizeExtractHtml -- HTML entities decoded");
-    auto t = wiki::tokenizeExtractHtml("AT&amp;T &quot;tag&quot; &lt;here&gt;.");
-    expectEq(t.size(), size_t{1}, "single text token");
-    expectEq(t[0].text, std::string("AT&T \"tag\" <here>."),
-             "&amp; &quot; &lt; &gt; all decoded");
-}
-
-void testExtractHtmlMultipleLinks() {
-    startTest("tokenizeExtractHtml -- multiple links + text");
-    auto t = wiki::tokenizeExtractHtml(
-        "<a href=\"/wiki/Apple\">Apples</a> and "
-        "<a href=\"/wiki/Orange\">oranges</a>.");
-    int linkCount = 0;
-    for (auto& tok : t) if (tok.kind == wiki::ExtractToken::Link) ++linkCount;
-    expectEq(linkCount, 2, "two link tokens");
-}
-
-void testExtractHtmlDropsStyleAndSup() {
-    startTest("tokenizeExtractHtml -- style + sup blocks dropped");
-    auto t = wiki::tokenizeExtractHtml(
-        "Real content here<style>.foo{color:red}</style>"
-        " more content<sup>[1]</sup> and "
-        "<a href=\"/wiki/Apple\">apples</a>.");
-    // Reconstruct the visible text from all tokens
-    std::string visible;
-    for (auto& tok : t) visible += tok.text;
-    expectTrue(visible.find("color:red") == std::string::npos,
-               "style block contents dropped");
-    expectTrue(visible.find("[1]") == std::string::npos,
-               "sup citation dropped");
-    expectContains(visible, "Real content here", "real content kept");
-    expectContains(visible, "more content", "kept text past sup");
-    int linkCount = 0;
-    for (auto& tok : t) if (tok.kind == wiki::ExtractToken::Link) ++linkCount;
-    expectEq(linkCount, 1, "link survives the drop pass");
-}
-
-void testExtractHtmlOnLeadFixture() {
-    startTest("tokenizeExtractHtml -- live Wikipedia lead HTML (Hypertext)");
-    // Pull the lead-HTML out of the action=parse fixture JSON.
-    auto raw = loadFile("test/fixtures/parse_lead_hypertext.json");
-    // Find "text": "..." -- naive string scan; ArduinoJson would be
-    // overkill for a test-only file read.
-    auto textKey = raw.find("\"text\":\"");
-    if (textKey == std::string::npos) { fail("fixture missing text key"); return; }
-    size_t start = textKey + 8;
-    // Find the closing quote -- text contains escaped quotes \", so
-    // we have to walk and unescape. Quick & dirty: find the next
-    // unescaped quote.
-    std::string html;
-    for (size_t i = start; i < raw.size(); ++i) {
-        if (raw[i] == '\\' && i + 1 < raw.size()) {
-            char nx = raw[i + 1];
-            if (nx == '"')       { html += '"';  ++i; }
-            else if (nx == '\\') { html += '\\'; ++i; }
-            else if (nx == '/')  { html += '/';  ++i; }
-            else if (nx == 'n')  { html += '\n'; ++i; }
-            else if (nx == 't')  { html += '\t'; ++i; }
-            else { html += raw[i]; }
-        } else if (raw[i] == '"') {
-            break;
-        } else {
-            html += raw[i];
-        }
-    }
-    expectTrue(html.size() > 1000, "fixture has substantive HTML body");
-
-    auto tokens = wiki::tokenizeExtractHtml(html);
-    int linkCount = 0;
-    std::string visible;
-    for (auto& tok : tokens) {
-        if (tok.kind == wiki::ExtractToken::Link) ++linkCount;
-        visible += tok.text;
-    }
-    expectTrue(linkCount > 5, "found multiple internal wiki links");
-    expectTrue(visible.find("color:red") == std::string::npos,
-               "no CSS bled through");
-    expectTrue(visible.find("font-style") == std::string::npos,
-               "no style attributes bled through");
-    expectContains(visible, "Hypertext", "topic name appears in body");
-    std::printf("  (extracted %d links, %zu visible chars)\n",
-                linkCount, visible.size());
-}
-
 void testSlugFromUrl() {
     startTest("detail::slugFromUrl -- url -> slug");
     using wiki::detail::slugFromUrl;
@@ -374,15 +230,6 @@ int main(int, char**) {
     testOpenSearchCardputer();
     testOnThisDay();
     testOnThisDayLimit();
-    testExtractHtmlPlain();
-    testExtractHtmlOneLink();
-    testExtractHtmlExternalLink();
-    testExtractHtmlNamespacedLink();
-    testExtractHtmlStripsTags();
-    testExtractHtmlEntities();
-    testExtractHtmlMultipleLinks();
-    testExtractHtmlDropsStyleAndSup();
-    testExtractHtmlOnLeadFixture();
     testStripHtml();
     testSlugFromUrl();
 

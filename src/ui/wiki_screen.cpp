@@ -17,6 +17,7 @@
 #include "indicators.h"
 #include "../storage/wiki_store.h"
 #include "../storage/settings.h"
+#include "../net/transport_device.h"
 
 #include <M5Cardputer.h>
 #include <M5GFX.h>
@@ -292,11 +293,28 @@ void drawLoading(M5Canvas& c, const char* label, uint32_t phaseMs) {
     c.print(label);
 }
 
-// Render a single loading frame.
+// Loading-frame redraw target. Held statically so the network-layer
+// tick can repaint the spinner without having to know about any UI
+// state. Pointers are valid as long as wiki_ui::run() is alive, which
+// is the entire UI lifetime.
+Canvas*     g_loadingCanv  = nullptr;
+const char* g_loadingLabel = nullptr;
+
+void loadingTickRedraw() {
+    if (!g_loadingCanv || !g_loadingCanv->ok) return;
+    drawLoading(g_loadingCanv->c, g_loadingLabel, millis());
+    g_loadingCanv->c.pushSprite(0, 0);
+}
+
+// Render the first loading frame and arm the transport-level tick so
+// the spinner keeps animating during the blocking fetch that follows.
 void pushLoading(Canvas& canv, const char* label) {
     if (!canv.ok) return;
+    g_loadingCanv  = &canv;
+    g_loadingLabel = label;
     drawLoading(canv.c, label, millis());
     canv.c.pushSprite(0, 0);
+    wiki::setNetTick(loadingTickRedraw);
 }
 
 // ---------- home ----------
@@ -523,15 +541,8 @@ void runSettings(Canvas& canv);
 // Paginated reader. trailDepth is how many articles deep into the
 // walk we are; when > 0 the 'b' key surfaces TrailBack so the user
 // can step back through their journey one article at a time.
-//
-// followPageIdOut: set by this function when the user picks an inline
-// link with enter. Caller (walk loop) interprets a non-empty value
-// as "skip the related picker, fetch this pageId directly". Cleared
-// by this function at entry.
 ArticleAction runArticle(Canvas& canv, const wiki::ArticleSummary& a,
-                         bool isSaved, int trailDepth,
-                         String& followPageIdOut) {
-    followPageIdOut = "";
+                         bool isSaved, int trailDepth) {
     if (!canv.ok) return ArticleAction::Back;
     auto& c = canv.c;
 
@@ -545,10 +556,10 @@ ArticleAction runArticle(Canvas& canv, const wiki::ArticleSummary& a,
     if (titleLines.size() > 2) titleLines.resize(2);
     int titleH = (int)titleLines.size() * 14;
 
-    // Compose a meta line: "~N min" reading estimate + link count
-    // (right-aligned later, drawn dim). Reading rate ~200 wpm; count
-    // words by counting transitions from space to non-space, which
-    // is cheap and good-enough.
+    // Compose a meta line: "~N min" reading estimate (right-aligned
+    // later, drawn dim). Reading rate ~200 wpm; count words by
+    // counting transitions from space to non-space, which is cheap
+    // and good-enough.
     auto countWords = [](const std::string& s) {
         int n = 0;
         bool inWord = false;
@@ -595,35 +606,14 @@ ArticleAction runArticle(Canvas& canv, const wiki::ArticleSummary& a,
         }
     }
 
-    // Two parallel views of the body: token-wrapped (links + text)
-    // and plain-wrapped fallback. Token wrap is used iff the server
-    // returned extract_html (live fetches do, saved-from-disk
-    // articles don't). The fallback keeps saved articles working.
     c.setFont(bodyFont);
-    bool useTokenView = !a.extractHtml.empty();
-    std::vector<wiki::ExtractToken> tokens;
-    std::vector<std::vector<RenderedSegment>> tokenLines;
-    std::vector<LinkInfo> links;
-    std::vector<String> plainLines;
-    int totalLines = 0;
-    if (useTokenView) {
-        tokens = wiki::tokenizeExtractHtml(a.extractHtml);
-        tokenLines = wrapTokens(c, tokens, kScreenW - 2 * kPadX, links);
-        totalLines = (int)tokenLines.size();
-    } else {
-        String asciiBody = toAscii(String(a.extract.c_str()));
-        plainLines = wrap(c, asciiBody, kScreenW - 2 * kPadX);
-        totalLines = (int)plainLines.size();
-    }
+    String asciiBody = toAscii(String(a.extract.c_str()));
+    std::vector<String> plainLines = wrap(c, asciiBody, kScreenW - 2 * kPadX);
+    int totalLines = (int)plainLines.size();
     const int kLineH = bodyLineH;
     int linesPerPage = readH / kLineH;
     if (linesPerPage < 1) linesPerPage = 1;
     int scrollLine = 0;
-
-    // Link nav state: -1 means "no link selected". Tab cycles
-    // through the links list, auto-scrolling to keep the chosen
-    // link on screen. Enter on a selected link follows it.
-    int selectedLink = -1;
 
     bool dirty = true;
     bool saved = isSaved;
@@ -640,16 +630,9 @@ ArticleAction runArticle(Canvas& canv, const wiki::ArticleSummary& a,
             int totalPages = (totalLines + linesPerPage - 1) / linesPerPage;
             if (totalPages < 1) totalPages = 1;
             // Status right side: save badge + trail-depth chevron +
-            // page or link counter. When a link is selected we
-            // surface its position (N/M) so the user knows roughly
-            // where they are in the link list; otherwise the page
-            // counter as before.
+            // page counter.
             char rightBuf[32];
-            if (useTokenView && selectedLink >= 0) {
-                snprintf(rightBuf, sizeof(rightBuf), "%slink %d/%d",
-                         saved ? "* " : "",
-                         selectedLink + 1, (int)links.size());
-            } else if (trailDepth > 0) {
+            if (trailDepth > 0) {
                 snprintf(rightBuf, sizeof(rightBuf), "%s<%d  %d/%d",
                          saved ? "* " : "", trailDepth, curPage, totalPages);
             } else {
@@ -667,9 +650,9 @@ ArticleAction runArticle(Canvas& canv, const wiki::ArticleSummary& a,
                 c.print(titleLines[i]);
             }
             // Description + meta row: description left-aligned in
-            // dim grey, reading-time / link count right-aligned in
-            // a slightly warmer dim sepia so the eye treats it as
-            // a separate annotation rather than article subtitle.
+            // dim grey, reading-time right-aligned in a slightly
+            // warmer dim sepia so the eye treats it as a separate
+            // annotation rather than article subtitle.
             if (descH > 0) {
                 c.setFont(&fonts::Font0);
                 int rowY = kBodyY + titleH + 2;
@@ -678,70 +661,22 @@ ArticleAction runArticle(Canvas& canv, const wiki::ArticleSummary& a,
                     c.setCursor(kPadX, rowY);
                     c.print(descLine);
                 }
-                // Compose right-side meta: reading time, maybe link count
-                String rightMeta = metaText;
-                if (useTokenView && !links.empty()) {
-                    if (rightMeta.length() > 0) rightMeta += " . ";
-                    rightMeta += String(links.size()) + " links";
-                }
-                if (rightMeta.length() > 0) {
+                if (metaText.length() > 0) {
                     c.setTextColor(kAccentLo, kBg);
-                    int rmw = c.textWidth(rightMeta.c_str());
+                    int rmw = c.textWidth(metaText.c_str());
                     c.setCursor(kScreenW - rmw - kPadX, rowY);
-                    c.print(rightMeta);
+                    c.print(metaText);
                 }
             }
-            // Body lines (paginated). Token view renders each
-            // segment with per-style color (sepia for links, idle
-            // for plain text). Font is whatever the textSize
-            // setting resolved to above.
+            // Body lines (paginated).
             c.setFont(bodyFont);
             for (int i = 0; i < linesPerPage; ++i) {
                 int idx = scrollLine + i;
                 if (idx >= totalLines) break;
                 int y = readY + i * kLineH;
-                if (useTokenView) {
-                    int x = kPadX;
-                    for (auto& seg : tokenLines[idx]) {
-                        bool isLink = (seg.linkIndex >= 0);
-                        bool isSel  = (seg.linkIndex == selectedLink);
-                        int segW = c.textWidth(seg.text.c_str());
-                        if (isSel) {
-                            // Selected link: brighter highlight color
-                            // (kHighlight is a more luminous warm tone
-                            // than the standard sepia) + an underline.
-                            // Lighter than the old inverted-background
-                            // treatment -- reads as "active" without
-                            // visually shouting.
-                            c.setTextColor(kHighlight, kBg);
-                            c.setCursor(x, y);
-                            c.print(seg.text);
-                            c.drawLine(x, y + kLineH - 2,
-                                       x + segW - 1, y + kLineH - 2,
-                                       kHighlight);
-                        } else if (isLink) {
-                            // Unselected link: standard sepia accent
-                            // with a thin underline so links are
-                            // visually distinguished from prose even
-                            // before Tab discovers them.
-                            c.setTextColor(kAccent, kBg);
-                            c.setCursor(x, y);
-                            c.print(seg.text);
-                            c.drawLine(x, y + kLineH - 2,
-                                       x + segW - 1, y + kLineH - 2,
-                                       kAccentLo);
-                        } else {
-                            c.setTextColor(kIdle, kBg);
-                            c.setCursor(x, y);
-                            c.print(seg.text);
-                        }
-                        x += segW;
-                    }
-                } else {
-                    c.setTextColor(kIdle, kBg);
-                    c.setCursor(kPadX, y);
-                    c.print(plainLines[idx]);
-                }
+                c.setTextColor(kIdle, kBg);
+                c.setCursor(kPadX, y);
+                c.print(plainLines[idx]);
             }
 
             // Two-row hint: contextual line surfaces the next-most-
@@ -754,19 +689,9 @@ ArticleAction runArticle(Canvas& canv, const wiki::ArticleSummary& a,
             } else {
                 topLeft = "enter . pick what's next";
             }
-            // When the article has tappable links, surface "tab links"
-            // in the persistent hint row -- otherwise it's a lottery
-            // for users to discover.
-            bool hasLinks = useTokenView && !links.empty();
-            const char* line2;
-            if (trailDepth > 0 && hasLinks)
-                line2 = "tab link . r reroll . s save . b trail";
-            else if (trailDepth > 0)
-                line2 = "r reroll . s save . b trail . del home";
-            else if (hasLinks)
-                line2 = "tab link . r reroll . s save . q qr";
-            else
-                line2 = "r reroll . s save . q qr . del back";
+            const char* line2 = (trailDepth > 0)
+                ? "r reroll . s save . b trail . del home"
+                : "r reroll . s save . q qr . del back";
             drawHintBar(c, topLeft, saved ? "* saved" : nullptr, line2);
 
             // Vertical scrollbar at the right edge of the body
@@ -838,42 +763,7 @@ ArticleAction runArticle(Canvas& canv, const wiki::ArticleSummary& a,
             }
         }
 
-        // Tab cycles through inline links: -1 -> 0 -> 1 -> ... -> N-1
-        // -> -1 (back to "no selection"). Past-the-end wraps to
-        // unselected rather than back to the first link so the user
-        // has a way out of link-mode without hitting Esc.
-        if (k.tab && useTokenView && !links.empty()) {
-            if (selectedLink + 1 >= (int)links.size()) {
-                selectedLink = -1;
-            } else {
-                ++selectedLink;
-                int target = links[selectedLink].firstLine;
-                if (target < scrollLine) {
-                    scrollLine = target;
-                } else if (target >= scrollLine + linesPerPage) {
-                    scrollLine = std::max(0, target - linesPerPage + 1);
-                    if (scrollLine + linesPerPage > totalLines) {
-                        scrollLine = std::max(0, totalLines - linesPerPage);
-                    }
-                }
-            }
-            sound::nav();
-            dirty = true;
-        }
-
         if (k.enter) {
-            // Enter on a selected link -> follow it. Returns Related
-            // so the walk loop can fetch + push trail; the link's
-            // pageId is shared via the outer-scope `followPageId` so
-            // the walk loop can intercept and route directly to
-            // fetchByPageId instead of going through the related
-            // picker.
-            if (useTokenView && selectedLink >= 0 &&
-                selectedLink < (int)links.size()) {
-                followPageIdOut = links[selectedLink].pageId;
-                sound::open();
-                return ArticleAction::Related;   // walk loop sees followPageIdOut
-            }
             if (scrollLine + linesPerPage < totalLines) {
                 scrollLine = std::min(totalLines - linesPerPage,
                                       scrollLine + linesPerPage);
@@ -1822,24 +1712,8 @@ void run(wiki::WikiClient& client) {
             settings::setLastPageId(String(a.pageId.c_str()));
             settings::setLastTitle(String(a.title.c_str()));
             bool savedAlready = wiki_store::exists(String(a.pageId.c_str()));
-            String followPageId;
             ArticleAction act = runArticle(canv, a, savedAlready,
-                                           (int)trail.size(), followPageId);
-
-            // Inline-link follow short-circuits the related picker:
-            // the user already chose a specific pageId via Tab + enter,
-            // so we fetch that directly.
-            if (act == ArticleAction::Related && followPageId.length() > 0) {
-                pushLoading(canv, "opening...");
-                wiki::ArticleSummary nextA;
-                if (!client.fetchByPageId(followPageId.c_str(), nextA)) {
-                    showLastError("fetch failed");
-                    continue;
-                }
-                pushTrail(trail, a);
-                a = nextA;
-                continue;
-            }
+                                           (int)trail.size());
 
             if (act == ArticleAction::Back) {
                 stayInWalk = false;

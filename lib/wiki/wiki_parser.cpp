@@ -60,7 +60,6 @@ bool parseSummary(const std::string& json, ArticleSummary& out) {
     out.title        = doc["title"] | "";
     out.description  = doc["description"] | "";
     out.extract      = doc["extract"] | "";
-    out.extractHtml  = doc["extract_html"] | "";
     out.canonicalUrl = doc["content_urls"]["desktop"]["page"] | "";
 
     if (out.title.empty() && out.pageId.empty()) return false;

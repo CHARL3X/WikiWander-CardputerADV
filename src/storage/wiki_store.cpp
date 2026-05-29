@@ -27,14 +27,6 @@ String pathFor(const String& slug) {
     return String(kDir) + "/" + slug + ".md";
 }
 
-// Companion file path for the rich HTML extract. Kept as a separate
-// sidecar (not embedded in the .md frontmatter) so it can contain
-// arbitrary HTML without escaping headaches, and so the existing .md
-// reader code can stay untouched.
-String htmlPathFor(const String& slug) {
-    return String(kDir) + "/" + slug + ".html";
-}
-
 String isoUtcNow() {
     time_t now = time(nullptr);
     if (now < 1577836800) return String("1970-01-01T00:00:00Z");
@@ -128,23 +120,6 @@ bool save(const wiki::ArticleSummary& a) {
     f.print(a.extract.c_str());
     f.print("\n");
     f.close();
-
-    // Sidecar: write the rich extract_html so reopening a saved
-    // article preserves tappable links. Skipped silently when the
-    // article has no rich HTML (e.g. fetched offline, or returned
-    // empty by Wikipedia) -- the reader handles missing extractHtml
-    // by falling back to plain text rendering.
-    if (!a.extractHtml.empty()) {
-        File h = SD.open(htmlPathFor(slug), FILE_WRITE);
-        if (h) {
-            h.print(a.extractHtml.c_str());
-            h.close();
-        }
-    } else {
-        // If a previous save had a sidecar and this one doesn't,
-        // remove the stale one so we don't render half-fresh data.
-        if (SD.exists(htmlPathFor(slug))) SD.remove(htmlPathFor(slug));
-    }
     return true;
 }
 
@@ -203,20 +178,10 @@ bool load(const String& slug, wiki::ArticleSummary& out) {
     out.description.assign(d.c_str());
     out.canonicalUrl.assign(u.c_str());
     out.extract.assign(b.c_str());
-
-    // Load the optional rich HTML sidecar. Missing or empty is
-    // fine -- the reader falls back to plain text. Articles saved
-    // before this feature shipped have no sidecar; they keep
-    // working as plain text without any migration step.
-    String html = readWhole(htmlPathFor(slug));
-    out.extractHtml.assign(html.c_str());
     return out.title.size() > 0 || out.pageId.size() > 0;
 }
 
 bool remove(const String& slug) {
-    // Remove the .html sidecar best-effort; failure to remove an
-    // already-missing file is fine.
-    if (SD.exists(htmlPathFor(slug))) SD.remove(htmlPathFor(slug));
     return SD.remove(pathFor(slug));
 }
 

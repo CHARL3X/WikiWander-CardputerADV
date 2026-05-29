@@ -10,6 +10,25 @@ namespace {
 
 constexpr int      kMaxRedirects   = 5;
 constexpr uint32_t kReadTimeMs     = 20000;
+constexpr uint32_t kTickIntervalMs = 50;
+
+// Progress hook fired from inside the read-wait loops so the UI can
+// animate the loading spinner while a fetch blocks. Throttled by
+// kTickIntervalMs so the spinner draws at ~20 fps without thrashing
+// the display during quick responses.
+std::function<void()> g_netTick;
+uint32_t g_lastTickMs = 0;
+
+inline void readWait() {
+    delay(1);
+    if (g_netTick) {
+        uint32_t now = millis();
+        if (now - g_lastTickMs >= kTickIntervalMs) {
+            g_netTick();
+            g_lastTickMs = now;
+        }
+    }
+}
 
 struct ParsedUrl {
     bool        ok = false;
@@ -79,7 +98,7 @@ bool readLine(WiFiClientSecure& c, std::string& out, uint32_t deadline) {
         if (millis() > deadline) return false;
         if (!c.available()) {
             if (!c.connected()) return false;
-            delay(1);
+            readWait();
             continue;
         }
         char ch = c.read();
@@ -104,7 +123,7 @@ public:
         while (!c_.available()) {
             if (!c_.connected()) return -1;
             if (millis() > deadline_) return -1;
-            delay(1);
+            readWait();
         }
         --remaining_;
         return c_.read();
@@ -135,7 +154,7 @@ public:
         while (!c_.available()) {
             if (!c_.connected()) { done_ = true; return -1; }
             if (millis() > deadline_) { done_ = true; return -1; }
-            delay(1);
+            readWait();
         }
         int byte = c_.read();
         --chunkRemaining_;
@@ -146,7 +165,7 @@ public:
                 if (millis() > deadline_) { done_ = true; break; }
                 if (!c_.available()) {
                     if (!c_.connected()) { done_ = true; break; }
-                    delay(1); continue;
+                    readWait(); continue;
                 }
                 c_.read();
                 ++crlf;
@@ -172,7 +191,7 @@ public:
             if (millis() > deadline_) return -1;
             if (c_.available()) return c_.read();
             if (!c_.connected()) return -1;
-            delay(1);
+            readWait();
         }
     }
     int available() const override { return 1; }
@@ -324,6 +343,11 @@ HttpResult DeviceTransport::getStreamed(const std::string& url,
     fail.status = 0;
     fail.error = "too many redirects";
     return fail;
+}
+
+void setNetTick(std::function<void()> cb) {
+    g_netTick = std::move(cb);
+    g_lastTickMs = millis();
 }
 
 } // namespace wiki

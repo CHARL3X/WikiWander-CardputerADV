@@ -22,10 +22,6 @@ struct ArticleSummary {
     std::string title;         // display title    -- "Hypertext"
     std::string description;   // short subtitle   -- may be empty
     std::string extract;       // body text, plaintext UTF-8, 1-3 paragraphs
-    std::string extractHtml;   // body in HTML; carries <a href="/wiki/...">
-                               // tags so the reader can highlight + follow
-                               // inline links. Empty for saved articles
-                               // that pre-date the html field.
     std::string canonicalUrl;  // content_urls.desktop.page -- full https URL
 };
 

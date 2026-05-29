@@ -35,12 +35,6 @@ public:
                         std::vector<TodayEvent>& out,
                         size_t maxItems = 30);
 
-    // Fetches the lead-section HTML for a page via the MediaWiki
-    // `action=parse` API. The result still has <a> tags intact (the
-    // /page/summary endpoint scrubs them), so the article reader
-    // can highlight + follow inline links. ~10-30 KB per article.
-    bool fetchArticleLeadHtml(const std::string& pageId, std::string& htmlOut);
-
     // Set after a fetch* call returns false. "http 503" / "parse
     // failed" / "transport: connection refused" -- caller can either
     // surface to user or retry.

@@ -17,4 +17,11 @@ public:
                            std::function<void(ByteReader&)> consume) override;
 };
 
+// Install a callback fired from inside HTTP read-wait loops, throttled
+// to ~50 ms. The UI uses this to animate the loading spinner while a
+// blocking fetch is in flight (the network layer would otherwise hold
+// the main thread for seconds with no chance to redraw). Pass nullptr
+// to clear. Process-wide: only one Transport exists at a time.
+void setNetTick(std::function<void()> cb);
+
 } // namespace wiki
