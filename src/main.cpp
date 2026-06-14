@@ -309,51 +309,43 @@ void setup() {
     if (!connectWiFi(connectPtr)) {
         if (connectCanvOk) connectCanv.deleteSprite();
 
-        // Show a help screen that directly tells the user how to fix
-        // it -- the most common cause is either no wifi.txt or wrong
-        // credentials. We display the file path + a literal example
-        // of the format so anyone can edit the SD card from a PC or
-        // phone with an SD reader and recover without needing
-        // CHARL3X or any other setup app.
-        using namespace ui;
-        M5Cardputer.Display.fillScreen(kBg);
-        // Status bar
-        M5Cardputer.Display.setFont(&fonts::Font0);
-        M5Cardputer.Display.setTextColor(kErr, kBg);
-        M5Cardputer.Display.setCursor(kPadX, 4);
-        M5Cardputer.Display.print("WIFI SETUP NEEDED");
-        M5Cardputer.Display.drawLine(0, kStatusH - 1, kScreenW, kStatusH - 1, kDivider);
-        // Body
-        M5Cardputer.Display.setFont(&fonts::Font2);
-        M5Cardputer.Display.setTextColor(kIdle, kBg);
-        M5Cardputer.Display.setCursor(kPadX, kBodyY + 2);
-        M5Cardputer.Display.print("Edit this on your SD card:");
-        M5Cardputer.Display.setTextColor(kAccent, kBg);
-        M5Cardputer.Display.setCursor(kPadX + 8, kBodyY + 18);
-        M5Cardputer.Display.print("/Cardputer/wifi.txt");
-        // Format example -- two-line pairs (ssid, password)
-        M5Cardputer.Display.setFont(&fonts::Font0);
-        M5Cardputer.Display.setTextColor(kDim, kBg);
-        M5Cardputer.Display.setCursor(kPadX, kBodyY + 36);
-        M5Cardputer.Display.print("Format (lines alternate):");
-        M5Cardputer.Display.setTextColor(kIdle, kBg);
-        M5Cardputer.Display.setCursor(kPadX + 8, kBodyY + 48);
-        M5Cardputer.Display.print("MyNetwork");
-        M5Cardputer.Display.setCursor(kPadX + 8, kBodyY + 58);
-        M5Cardputer.Display.print("mypassword");
-        M5Cardputer.Display.setTextColor(kDim, kBg);
-        M5Cardputer.Display.setCursor(kPadX, kBodyY + 72);
-        M5Cardputer.Display.print("(blank line for next pair)");
-        // Hint bar
-        int hy = kScreenH - kHintH;
-        M5Cardputer.Display.drawLine(0, hy, kScreenW, hy, kDivider);
-        M5Cardputer.Display.setTextColor(kDim, kBg);
-        M5Cardputer.Display.setCursor(kPadX, hy + 6);
-        M5Cardputer.Display.print("power cycle once you've saved the file");
+        // Auto-connect found nothing usable. Drop straight into the
+        // on-device WiFi picker so the user can scan, choose a network,
+        // and type the password right here -- no PC, no SD-card editing.
+        // It loops internally until they connect or back out.
+        bool connected = wiki_ui::runWifiSetup();
 
-        while (true) delay(1000);
+        if (!connected) {
+            // The user left setup without connecting. Last-resort help
+            // screen -- editing the SD card from a PC still works as a
+            // fallback, but the on-device picker above is the main path.
+            using namespace ui;
+            M5Cardputer.Display.fillScreen(kBg);
+            M5Cardputer.Display.setFont(&fonts::Font0);
+            M5Cardputer.Display.setTextColor(kErr, kBg);
+            M5Cardputer.Display.setCursor(kPadX, 4);
+            M5Cardputer.Display.print("NO WIFI");
+            M5Cardputer.Display.drawLine(0, kStatusH - 1, kScreenW, kStatusH - 1, kDivider);
+            M5Cardputer.Display.setFont(&fonts::Font2);
+            M5Cardputer.Display.setTextColor(kIdle, kBg);
+            M5Cardputer.Display.setCursor(kPadX, kBodyY + 6);
+            M5Cardputer.Display.print("Wikiwander needs WiFi.");
+            M5Cardputer.Display.setTextColor(kDim, kBg);
+            M5Cardputer.Display.setFont(&fonts::Font0);
+            M5Cardputer.Display.setCursor(kPadX, kBodyY + 28);
+            M5Cardputer.Display.print("Get in range of a network, then");
+            M5Cardputer.Display.setCursor(kPadX, kBodyY + 40);
+            M5Cardputer.Display.print("power cycle to set it up on-device.");
+            int hy = kScreenH - kHintH;
+            M5Cardputer.Display.drawLine(0, hy, kScreenW, hy, kDivider);
+            M5Cardputer.Display.setTextColor(kDim, kBg);
+            M5Cardputer.Display.setCursor(kPadX, hy + 6);
+            M5Cardputer.Display.print("power cycle to retry");
+            while (true) delay(1000);
+        }
+    } else {
+        if (connectCanvOk) connectCanv.deleteSprite();
     }
-    if (connectCanvOk) connectCanv.deleteSprite();
 
     // Sync NTP so saved_utc timestamps are real-world times rather
     // than 1970 epoch garbage. Best-effort: skip if it doesn't

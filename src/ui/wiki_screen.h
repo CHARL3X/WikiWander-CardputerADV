@@ -8,4 +8,10 @@ namespace wiki_ui {
 
 void run(wiki::WikiClient& client);
 
+// On-device WiFi setup: scan, pick a network, type the password, save
+// + connect -- no PC required. Creates its own full-screen canvas, so
+// it can be called at boot (before run()) when auto-connect fails.
+// Returns true if the device is connected when the user leaves.
+bool runWifiSetup();
+
 } // namespace wiki_ui
