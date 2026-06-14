@@ -91,9 +91,15 @@ Subtle ES8311 speaker blips for save / reroll / back / error / nav. Mute togglea
 <table>
 <tr><td><b>01</b></td><td>Flash bmorcelli&apos;s Launcher to your Cardputer ADV using the web flasher. One-time, ~30 seconds.</td></tr>
 <tr><td><b>02</b></td><td>Drop <code>Wikiwander.bin</code> into <code>/apps/</code> on the SD card.</td></tr>
-<tr><td><b>03</b></td><td>Create <code>/Cardputer/wifi.txt</code> on the SD root — one SSID per line followed by its password, blank lines separating networks.</td></tr>
-<tr><td><b>04</b></td><td>Boot the launcher → SD → install Wikiwander.bin. Done.</td></tr>
+<tr><td><b>03</b></td><td>Boot the launcher → SD → install Wikiwander.bin. Done.</td></tr>
+<tr><td><b>04</b></td><td>On first boot, Wikiwander scans for WiFi and lets you <b>pick a network and type the password right on the device</b>. No PC needed.</td></tr>
 </table>
+
+#### WiFi, on the device
+
+When auto-connect finds nothing, Wikiwander drops straight into a picker: nearby networks listed strongest-first, locked ones tagged, saved ones marked. Pick one, type the password on the Cardputer keyboard, and it connects and remembers it. **Settings → wifi** opens the same picker any time — scan, switch networks, reconnect to a saved one with one keypress, or delete stale entries.
+
+Credentials are stored in `/Cardputer/wifi.txt` (shared with CHARL3X), so what you set up on-device persists across reflashes — and you can still seed it from a PC if you prefer:
 
 ```text
 HomeNetwork
@@ -103,7 +109,7 @@ OfficeWiFi
 my-office-password
 ```
 
-Wikiwander scans nearby networks at boot and only attempts SSIDs actually in range — multi-location creds are fine, they don&apos;t slow each other down.
+One SSID per line followed by its password, blank lines separating networks. Wikiwander scans at boot and only attempts SSIDs actually in range — multi-location creds are fine, they don&apos;t slow each other down.
 
 <br>
 
@@ -196,13 +202,15 @@ lib/wiki/                 Pure C++, no Arduino/M5 dependencies
 ├── transport.h           ByteReader + Transport interface
 └── wiki_client.{h,cpp}   URL construction + parser glue
 
-src/net/transport_device.cpp
-                          WiFiClientSecure transport with chunked +
-                          streamed body readers
+src/net/
+├── transport_device.cpp  WiFiClientSecure transport with chunked +
+│                         streamed body readers
+└── wifi_manager.{h,cpp}  Poll-friendly scan/connect primitives for
+                          the on-device WiFi picker
 
 src/storage/
 ├── settings.{h,cpp}      NVS-backed prefs (namespace: wikiwander)
-├── sd_config.{h,cpp}     SD mount + wifi.txt loading
+├── sd_config.{h,cpp}     SD mount + wifi.txt load/save (on-device edit)
 └── wiki_store.{h,cpp}    Save/load articles (.md + .html sidecar)
 
 src/ui/

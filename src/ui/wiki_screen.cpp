@@ -17,10 +17,13 @@
 #include "indicators.h"
 #include "../storage/wiki_store.h"
 #include "../storage/settings.h"
+#include "../storage/sd_config.h"
 #include "../net/transport_device.h"
+#include "../net/wifi_manager.h"
 
 #include <M5Cardputer.h>
 #include <M5GFX.h>
+#include <WiFi.h>
 #include <vector>
 #include <time.h>
 
@@ -537,6 +540,10 @@ enum class ArticleAction { Back, Related, Save, Random, TrailBack };
 // QR share overlay without changing its own return type.
 void showQrShare(Canvas& canv, const wiki::ArticleSummary& a);
 void runSettings(Canvas& canv);
+// Defined far below; the WiFi screens (inserted before Settings) reuse it.
+void showError(Canvas& canv, const char* head, const String& detail);
+// On-device WiFi picker -- scan, choose, type password, connect.
+bool wifiManager(Canvas& canv, bool bootContext);
 
 // Paginated reader. trailDepth is how many articles deep into the
 // walk we are; when > 0 the 'b' key surfaces TrailBack so the user
@@ -778,6 +785,426 @@ ArticleAction runArticle(Canvas& canv, const wiki::ArticleSummary& a,
     }
 }
 
+// ---------- wifi setup ----------
+
+// Three-bar signal glyph for a scan-list row (mirrors the status-bar
+// WiFi icon but driven by an explicit RSSI rather than the live link).
+void drawNetSignal(M5Canvas& c, int x, int y, int32_t rssi, uint16_t col) {
+    int bars = 1;
+    if      (rssi >= -55) bars = 3;
+    else if (rssi >= -70) bars = 2;
+    else                  bars = 1;
+    const int h[3] = {3, 5, 7};
+    for (int i = 0; i < 3; ++i) {
+        int bx = x + i * 3;
+        int by = y + 7 - h[i];
+        c.fillRect(bx, by, 2, h[i], i < bars ? col : kAccentLo);
+    }
+}
+
+// Pulsing-ring busy frame shared by the scan and connect waits, so both
+// look like the boot connect screen the user already saw.
+void drawWifiBusy(M5Canvas& c, const char* label, uint32_t phaseMs) {
+    c.fillScreen(kBg);
+    drawStatusBar(c, "WIFI");
+    int cx = kScreenW / 2;
+    int cy = kBodyY + kBodyH / 2 - 6;
+    float p = (phaseMs % 1200) / 1200.0f;
+    int r = (int)(6 + p * 16);
+    uint8_t fadeT = (uint8_t)(255 * (1.0f - p));
+    uint16_t fade = M5Cardputer.Display.color565(
+        (uint8_t)((0xBC * fadeT) / 255),
+        (uint8_t)((0x60 * fadeT) / 255), 0);
+    c.drawCircle(cx, cy, r, fade);
+    c.fillCircle(cx, cy, 3, kAccent);
+    c.setFont(&fonts::Font2);
+    c.setTextSize(1);
+    c.setTextColor(kIdle, kBg);
+    int tw = c.textWidth(label);
+    c.setCursor((kScreenW - tw) / 2, cy + 26);
+    c.print(label);
+    drawHintBar(c, "", nullptr, "` cancel");
+}
+
+// Drive a single connection attempt, animating until it lands or times
+// out. Returns true on a live link. The user can abort with backtick.
+bool attemptConnect(Canvas& canv, const String& ssid, const String& pw) {
+    auto& c = canv.c;
+    wifimgr::beginConnect(ssid, pw);
+    std::vector<char> prevWord;
+    bool prevEnter = false, prevDel = false, prevTab = false, prevEsc = false, prevAny = false;
+    primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+    uint32_t t0 = millis();
+    while (millis() - t0 < 12000) {
+        if (wifimgr::isConnected()) return true;
+        drawWifiBusy(c, "connecting...", millis());
+        c.pushSprite(0, 0);
+        auto k = readKeysEdge(prevAny, prevWord, prevEnter, prevDel, prevTab, prevEsc);
+        if (k.esc) break;
+        delay(40);
+    }
+    return wifimgr::isConnected();
+}
+
+// Brief success card. Auto-dismisses after ~1.6 s (so a boot connect
+// flows straight into the app) but any key returns immediately.
+void showWifiConnected(Canvas& canv, const String& ssid) {
+    auto& c = canv.c;
+    c.fillScreen(kBg);
+    drawStatusBar(c, "WIFI", "online");
+    c.setFont(&fonts::FreeSerifBoldItalic9pt7b);
+    c.setTextColor(kAccent, kBg);
+    const char* t = "connected";
+    int tw = c.textWidth(t);
+    c.setCursor((kScreenW - tw) / 2, kBodyY + 24);
+    c.print(t);
+    c.setFont(&fonts::Font2);
+    c.setTextColor(kIdle, kBg);
+    String s = ellipsize(c, toAscii(ssid), kScreenW - 2 * kPadX);
+    int sw = c.textWidth(s.c_str());
+    c.setCursor((kScreenW - sw) / 2, kBodyY + 48);
+    c.print(s);
+    drawHintBar(c, "saved to this device", nullptr, "any key to continue");
+    c.pushSprite(0, 0);
+
+    std::vector<char> prevWord;
+    bool prevEnter = false, prevDel = false, prevTab = false, prevEsc = false, prevAny = false;
+    primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+    uint32_t t0 = millis();
+    while (millis() - t0 < 1600) {
+        auto k = readKeysEdge(prevAny, prevWord, prevEnter, prevDel, prevTab, prevEsc);
+        if (k.enter || k.del || k.esc || !k.word.empty()) break;
+        delay(20);
+    }
+}
+
+// On-screen password field. `pw` is seeded with any known password
+// (so reconnecting to a saved network is a single enter) and edited in
+// place. Returns true on enter (connect), false on backtick (cancel).
+// The Cardputer keymap already resolves shift/fn, so k.word carries the
+// real characters -- uppercase and symbols included.
+bool runPasswordEntry(Canvas& canv, const String& ssid, String& pw) {
+    auto& c = canv.c;
+    bool dirty = true;
+    std::vector<char> prevWord;
+    bool prevEnter = false, prevDel = false, prevTab = false, prevEsc = false, prevAny = false;
+    primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+
+    while (true) {
+        if (dirty) {
+            c.fillScreen(kBg);
+            drawStatusBar(c, "WIFI PASSWORD");
+
+            c.setFont(&fonts::Font0);
+            c.setTextColor(kDim, kBg);
+            c.setCursor(kPadX, kBodyY + 2);
+            c.print("network:");
+            c.setTextColor(kAccent, kBg);
+            c.setCursor(kPadX + 56, kBodyY + 2);
+            c.print(ellipsize(c, toAscii(ssid), kScreenW - 2 * kPadX - 56));
+
+            // Multi-line input box (passwords routinely exceed one row).
+            int boxY = kBodyY + 16;
+            int boxH = 46;
+            c.fillRoundRect(kPadX, boxY, kScreenW - 2 * kPadX, boxH, 3, kPanel);
+            c.drawRoundRect(kPadX, boxY, kScreenW - 2 * kPadX, boxH, 3, kAccent);
+            c.setFont(&fonts::Font2);
+            c.setTextSize(1);
+            if (pw.length() == 0) {
+                c.setTextColor(kDim, kPanel);
+                c.setCursor(kPadX + 6, boxY + 6);
+                c.print("type password...");
+            } else {
+                c.setTextColor(kIdle, kPanel);
+                std::vector<String> lines = wrap(c, pw, kScreenW - 2 * kPadX - 12);
+                int shown = (int)lines.size();
+                if (shown > 3) {  // keep the tail visible as it grows
+                    lines.erase(lines.begin(), lines.begin() + (shown - 3));
+                }
+                for (size_t i = 0; i < lines.size(); ++i) {
+                    c.setCursor(kPadX + 6, boxY + 6 + (int)i * 14);
+                    c.print(lines[i]);
+                }
+                // Blinking caret after the last rendered line.
+                if (!lines.empty() && (millis() / 400) % 2 == 0) {
+                    int lw = c.textWidth(lines.back().c_str());
+                    int cy = boxY + 6 + (int)(lines.size() - 1) * 14;
+                    c.fillRect(kPadX + 6 + lw, cy, 1, 12, kAccent);
+                }
+            }
+
+            drawHintBar(c, "enter . connect & save", nullptr,
+                        "del erase . ` cancel");
+            c.pushSprite(0, 0);
+            dirty = false;
+        }
+
+        auto k = readKeysEdge(prevAny, prevWord, prevEnter, prevDel, prevTab, prevEsc);
+        for (char ch : k.word) {
+            if (ch >= ' ' && ch < 0x7F && ch != '`') { pw += ch; dirty = true; }
+        }
+        if (k.del && pw.length() > 0) { pw.remove(pw.length() - 1); dirty = true; }
+        if (k.enter) { sound::open(); return true; }
+        if (k.esc)   { sound::back(); return false; }
+
+        static uint32_t lastTick = 0;
+        if (millis() - lastTick > 400) { dirty = true; lastTick = millis(); }
+        delay(20);
+    }
+}
+
+// Saved-network manager: reconnect to a remembered network with one
+// keypress (no scan, no retyping) or delete stale entries. Returns true
+// if a connection was established here.
+bool runSavedNetworks(Canvas& canv) {
+    auto& c = canv.c;
+    std::vector<sdcfg::WiFiCred> creds = sdcfg::loadWiFi();
+    int selected = 0, scroll = 0;
+    bool dirty = true;
+    constexpr int kRowH = 16;
+    int rowsVisible = (kBodyH - 4) / kRowH;
+    if (rowsVisible < 1) rowsVisible = 1;
+
+    std::vector<char> prevWord;
+    bool prevEnter = false, prevDel = false, prevTab = false, prevEsc = false, prevAny = false;
+    primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+
+    while (true) {
+        if (dirty) {
+            c.fillScreen(kBg);
+            char rb[20];
+            snprintf(rb, sizeof(rb), "%d saved", (int)creds.size());
+            drawStatusBar(c, "SAVED WIFI", rb);
+
+            if (creds.empty()) {
+                c.setFont(&fonts::Font2);
+                c.setTextColor(kDim, kBg);
+                const char* m = "(none saved yet)";
+                int tw = c.textWidth(m);
+                c.setCursor((kScreenW - tw) / 2, kBodyY + kBodyH / 2 - 6);
+                c.print(m);
+            } else {
+                String live = wifimgr::isConnected() ? WiFi.SSID() : String();
+                for (int i = 0; i < rowsVisible && (scroll + i) < (int)creds.size(); ++i) {
+                    int idx = scroll + i;
+                    bool sel = (idx == selected);
+                    int y = kBodyY + 2 + i * kRowH;
+                    if (sel) c.fillRoundRect(kPadX, y - 1,
+                                             kScreenW - 2 * kPadX, kRowH - 1, 2, kAccentLo);
+                    int rightX = kScreenW - kPadX - 4;
+                    if (creds[idx].ssid == live && live.length() > 0) {
+                        c.setFont(&fonts::Font0);
+                        const char* on = "online";
+                        int ow = c.textWidth(on);
+                        c.setTextColor(sel ? kBg : kAccent, sel ? kAccentLo : kBg);
+                        c.setCursor(rightX - ow, y + 4);
+                        c.print(on);
+                        rightX -= ow + 6;
+                    }
+                    c.setFont(&fonts::Font2);
+                    c.setTextSize(1);
+                    c.setTextColor(sel ? kBg : kIdle, sel ? kAccentLo : kBg);
+                    c.setCursor(kPadX + 4, y);
+                    c.print(ellipsize(c, toAscii(creds[idx].ssid),
+                                      rightX - (kPadX + 4)));
+                }
+            }
+
+            drawHintBar(c,
+                        creds.empty() ? "del back" : "enter reconnect . d delete",
+                        nullptr, "del back");
+            c.pushSprite(0, 0);
+            dirty = false;
+        }
+
+        auto k = readKeysEdge(prevAny, prevWord, prevEnter, prevDel, prevTab, prevEsc);
+        for (char ch : k.word) {
+            if (ch == ';' || ch == ',') {
+                if (selected > 0) { sound::nav(); --selected; dirty = true; }
+                if (selected < scroll) scroll = selected;
+            } else if (ch == '.' || ch == '/') {
+                if (selected < (int)creds.size() - 1) { sound::nav(); ++selected; dirty = true; }
+                if (selected >= scroll + rowsVisible) scroll = selected - rowsVisible + 1;
+            } else if ((ch == 'd' || ch == 'D') && !creds.empty()) {
+                sdcfg::removeWiFi(creds[selected].ssid);
+                creds = sdcfg::loadWiFi();
+                if (selected >= (int)creds.size()) selected = std::max(0, (int)creds.size() - 1);
+                sound::back();
+                dirty = true;
+            }
+        }
+        if (k.enter && !creds.empty()) {
+            sound::open();
+            bool ok = attemptConnect(canv, creds[selected].ssid, creds[selected].password);
+            primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+            if (ok) {
+                sound::save();
+                showWifiConnected(canv, creds[selected].ssid);
+                return true;
+            }
+            showError(canv, "couldn't connect",
+                      "network out of range or password changed");
+            primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+            dirty = true;
+        }
+        if (k.esc || k.del) { sound::back(); return wifimgr::isConnected(); }
+        delay(20);
+    }
+}
+
+// The picker itself. Scans, lists networks (signal-sorted, saved ones
+// tagged), and on select either connects to an open AP straight away or
+// pops the password field. `bootContext` only tweaks the framing hint.
+// Returns true if the device is connected when the user leaves.
+bool wifiManager(Canvas& canv, bool bootContext) {
+    auto& c = canv.c;
+
+    while (true) {
+        // ---- scan ----
+        wifimgr::startScan();
+        {
+            std::vector<char> prevWord;
+            bool prevEnter = false, prevDel = false, prevTab = false, prevEsc = false, prevAny = false;
+            primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+            uint32_t t0 = millis();
+            while (true) {
+                int st = wifimgr::scanState();
+                if (st >= 0 || st == WIFI_SCAN_FAILED) break;
+                if (millis() - t0 > 12000) break;
+                drawWifiBusy(c, "scanning...", millis());
+                c.pushSprite(0, 0);
+                auto k = readKeysEdge(prevAny, prevWord, prevEnter, prevDel, prevTab, prevEsc);
+                if (k.esc) { wifimgr::cancel(); return wifimgr::isConnected(); }
+                delay(40);
+            }
+        }
+        std::vector<wifimgr::Net> nets = wifimgr::collectScan();
+
+        // ---- list ----
+        int selected = 0, scroll = 0;
+        bool dirty = true, rescan = false;
+        constexpr int kRowH = 16;
+        int rowsVisible = (kBodyH - 4) / kRowH;
+        if (rowsVisible < 1) rowsVisible = 1;
+
+        std::vector<char> prevWord;
+        bool prevEnter = false, prevDel = false, prevTab = false, prevEsc = false, prevAny = false;
+        primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+
+        while (!rescan) {
+            if (dirty) {
+                c.fillScreen(kBg);
+                char rb[20];
+                if (wifimgr::isConnected()) snprintf(rb, sizeof(rb), "online");
+                else snprintf(rb, sizeof(rb), "%d found", (int)nets.size());
+                // At boot the user is here because there's no connection
+                // yet, so frame it as the gateway into the app.
+                drawStatusBar(c, bootContext ? "CONNECT TO START" : "WIFI SETUP", rb);
+
+                if (nets.empty()) {
+                    c.setFont(&fonts::Font2);
+                    c.setTextColor(kDim, kBg);
+                    const char* m = "(no networks found)";
+                    int tw = c.textWidth(m);
+                    c.setCursor((kScreenW - tw) / 2, kBodyY + kBodyH / 2 - 6);
+                    c.print(m);
+                } else {
+                    std::vector<sdcfg::WiFiCred> saved = sdcfg::loadWiFi();
+                    for (int i = 0; i < rowsVisible && (scroll + i) < (int)nets.size(); ++i) {
+                        int idx = scroll + i;
+                        bool sel = (idx == selected);
+                        int y = kBodyY + 2 + i * kRowH;
+                        if (sel) c.fillRoundRect(kPadX, y - 1,
+                                                 kScreenW - 2 * kPadX, kRowH - 1, 2, kAccentLo);
+                        drawNetSignal(c, kPadX + 2, y + 3, nets[idx].rssi,
+                                      sel ? kBg : kAccent);
+
+                        int rightX = kScreenW - kPadX - 4;
+                        c.setFont(&fonts::Font0);
+                        bool isSaved = false;
+                        for (auto& s : saved) if (s.ssid == nets[idx].ssid) { isSaved = true; break; }
+                        if (isSaved) {
+                            const char* sv = "saved";
+                            int sw = c.textWidth(sv);
+                            c.setTextColor(sel ? kBg : kDim, sel ? kAccentLo : kBg);
+                            c.setCursor(rightX - sw, y + 4);
+                            c.print(sv);
+                            rightX -= sw + 6;
+                        }
+                        if (!nets[idx].open) {
+                            const char* lk = "lock";
+                            int lw = c.textWidth(lk);
+                            c.setTextColor(sel ? kBg : kAccentLo, sel ? kAccentLo : kBg);
+                            c.setCursor(rightX - lw, y + 4);
+                            c.print(lk);
+                            rightX -= lw + 6;
+                        }
+
+                        c.setFont(&fonts::Font2);
+                        c.setTextSize(1);
+                        c.setTextColor(sel ? kBg : kIdle, sel ? kAccentLo : kBg);
+                        c.setCursor(kPadX + 14, y);
+                        c.print(ellipsize(c, toAscii(nets[idx].ssid),
+                                          rightX - (kPadX + 14)));
+                    }
+                }
+
+                drawHintBar(c,
+                            nets.empty() ? "r rescan . m saved" : "enter connect . arrows nav",
+                            nullptr,
+                            "r rescan . m saved . del back");
+                c.pushSprite(0, 0);
+                dirty = false;
+            }
+
+            auto k = readKeysEdge(prevAny, prevWord, prevEnter, prevDel, prevTab, prevEsc);
+            for (char ch : k.word) {
+                if (ch == ';' || ch == ',') {
+                    if (selected > 0) { sound::nav(); --selected; dirty = true; }
+                    if (selected < scroll) scroll = selected;
+                } else if (ch == '.' || ch == '/') {
+                    if (selected < (int)nets.size() - 1) { sound::nav(); ++selected; dirty = true; }
+                    if (selected >= scroll + rowsVisible) scroll = selected - rowsVisible + 1;
+                } else if (ch == 'r' || ch == 'R') {
+                    sound::nav();
+                    rescan = true;
+                } else if (ch == 'm' || ch == 'M') {
+                    if (runSavedNetworks(canv)) return true;
+                    primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+                    dirty = true;
+                }
+            }
+
+            if (k.enter && !nets.empty()) {
+                wifimgr::Net net = nets[selected];
+                String pw;
+                bool proceed = true;
+                if (!net.open) {
+                    pw = sdcfg::passwordFor(net.ssid);   // prefill if known
+                    proceed = runPasswordEntry(canv, net.ssid, pw);
+                    primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+                }
+                if (proceed) {
+                    sdcfg::addWiFi(net.ssid, pw);        // remember before trying
+                    bool ok = attemptConnect(canv, net.ssid, pw);
+                    primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+                    if (ok) {
+                        showWifiConnected(canv, net.ssid);
+                        return true;
+                    }
+                    showError(canv, "couldn't connect",
+                              net.open ? "network did not respond"
+                                       : "check the password and try again");
+                    primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+                }
+                dirty = true;
+            }
+            if (k.esc || k.del) { sound::back(); return wifimgr::isConnected(); }
+            delay(20);
+        }
+    }
+}
+
 // ---------- settings ----------
 
 // Settings list -- the single place where all togglable state is
@@ -792,7 +1219,7 @@ void runSettings(Canvas& canv) {
 
     int selected = 0;
     bool dirty = true;
-    constexpr int kRowCount = 3;
+    constexpr int kRowCount = 4;
 
     std::vector<char> prevWord;
     bool prevEnter = false, prevDel = false, prevTab = false, prevEsc = false, prevAny = false;
@@ -810,19 +1237,26 @@ void runSettings(Canvas& canv) {
     auto valueFor = [](int row) -> String {
         switch (row) {
             case 0: {
+                if (WiFi.status() != WL_CONNECTED) return "set up";
+                String s = toAscii(WiFi.SSID());
+                if (s.length() > 12) { s = s.substring(0, 11); s += "."; }
+                return s;
+            }
+            case 1: {
                 String s = settings::textSize();
                 if (s == "medium") return "medium";
                 if (s == "large")  return "large";
                 return "small";
             }
-            case 1: return settings::peopleAllowed() ? "shown" : "hidden";
-            case 2: return sound::muted() ? "muted" : "on";
+            case 2: return settings::peopleAllowed() ? "shown" : "hidden";
+            case 3: return sound::muted() ? "muted" : "on";
         }
         return "";
     };
 
     struct Row { const char* label; };
     static const Row rows[kRowCount] = {
+        {"wifi"},
         {"text size"},
         {"people"},
         {"audio"},
@@ -846,14 +1280,14 @@ void runSettings(Canvas& canv) {
             // Rows: label left, value right, selected row in sepia bg.
             c.setFont(&fonts::Font2);
             c.setTextSize(1);
-            int rowY = kBodyY + 28;
-            constexpr int kRowH = 20;
+            int rowY = kBodyY + 26;
+            constexpr int kRowH = 18;
             for (int i = 0; i < kRowCount; ++i) {
                 bool sel = (i == selected);
                 int y = rowY + i * kRowH;
                 if (sel) {
                     c.fillRoundRect(kPadX + 4, y - 1,
-                                    kScreenW - 2 * (kPadX + 4), 18, 3, kAccentLo);
+                                    kScreenW - 2 * (kPadX + 4), 16, 3, kAccentLo);
                 }
                 c.setTextColor(sel ? kBg : kIdle, sel ? kAccentLo : kBg);
                 c.setCursor(kPadX + 10, y + 1);
@@ -885,9 +1319,15 @@ void runSettings(Canvas& canv) {
         if (k.enter) {
             sound::nav();
             switch (selected) {
-                case 0: cycleTextSize(); break;
-                case 1: settings::setPeopleAllowed(!settings::peopleAllowed()); break;
-                case 2: sound::setMuted(!sound::muted()); break;
+                case 0:
+                    // WiFi manager is a full sub-screen; re-prime key
+                    // state on return so a held enter doesn't re-open it.
+                    wifiManager(canv, /*bootContext=*/false);
+                    primeKeyEdge(prevWord, prevEnter, prevDel, prevTab, prevEsc);
+                    break;
+                case 1: cycleTextSize(); break;
+                case 2: settings::setPeopleAllowed(!settings::peopleAllowed()); break;
+                case 3: sound::setMuted(!sound::muted()); break;
             }
             dirty = true;
         }
@@ -1598,6 +2038,17 @@ void showError(Canvas& canv, const char* head, const String& detail) {
 }
 
 } // namespace
+
+// ---------- public entry points ----------
+
+bool runWifiSetup() {
+    Canvas canv;
+    if (!canv.ok) {
+        Serial.println("[wifi] canvas alloc failed; cannot run setup");
+        return false;
+    }
+    return wifiManager(canv, /*bootContext=*/true);
+}
 
 // ---------- top-level orchestrator ----------
 
